@@ -259,7 +259,7 @@ const App = () => {
     };
   }, []);
 
-  const isClientMode = useMemo(() => !!referralId, [referralId]);
+  const isClientMode = useMemo(() => new URLSearchParams(window.location.search).has('ref'), []);
 
   const ticketStats = useMemo(() => {
     const sold = tickets.filter(t => t.status !== 'AVAILABLE');
