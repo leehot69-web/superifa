@@ -58,7 +58,7 @@ const App = () => {
     drawTimestamp: "2024-12-31T20:00",
     commissionPct: 10,
     prizes: [
-      { id: '1', name: 'iPhone 15 Pro Max', subtitle: 'El premio que cambia tu vida', image: 'https://images.unsplash.com/photo-1695048133142-1a20484d2569?auto=format&fit=crop&q=80&w=600' },
+      { id: '1', name: 'iPhone 15 Pro Max', subtitle: 'El premio que cambia tu vida', image: 'https://images.unsplash.com/photo-1696446701796-da61225697cc?q=80&w=1000&auto=format' },
       { id: '2', name: 'Watch Ultra', subtitle: 'Luxury Edition', image: 'https://images.unsplash.com/photo-1524592094714-0f0654e20314?auto=format&fit=crop&q=80&w=400' },
       { id: '3', name: 'PS5 Console', subtitle: 'Gaming Premium', image: 'https://images.unsplash.com/photo-1606144042614-b2417e99c4e3?auto=format&fit=crop&q=80&w=400' }
     ]
@@ -432,8 +432,8 @@ const App = () => {
       <main className="relative z-10 px-4 mt-6 flex-1">
         {/* Prize Card */}
         <div className="relative flex flex-col items-center">
-          <div className="w-full rounded-3xl overflow-hidden border border-primary/20 shadow-gold-glow relative">
-            <img src={config.prizes?.[0]?.image || "https://images.unsplash.com/photo-1695048133142-1a20484d2569"} className="w-full h-56 object-cover" />
+          <div className="w-full rounded-3xl overflow-hidden border border-primary/20 shadow-gold-glow relative aspect-video">
+            <img src={config.prizes?.[0]?.image || "https://images.unsplash.com/photo-1696446701796-da61225697cc?q=80&w=1000&auto=format"} className="w-full h-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent"></div>
             <div className="absolute bottom-0 left-0 right-0 p-5">
               <span className="bg-primary text-black text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">Premio Mayor</span>
