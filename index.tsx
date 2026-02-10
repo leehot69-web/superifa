@@ -38,6 +38,13 @@ interface RaffleConfig {
   tickerMessage: string;
   winners: Winner[];
 }
+interface PaymentRecord {
+  id: string;
+  seller_id: string;
+  amount: number;
+  date: string;
+  notes: string;
+}
 
 const ADMIN_PIN = "11863";
 
@@ -94,6 +101,8 @@ const App = () => {
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [showGoldenTicket, setShowGoldenTicket] = useState<{ show: boolean; numbers: string[] }>({ show: false, numbers: [] });
   const [showAffiliateModal, setShowAffiliateModal] = useState(false);
+  const [payments, setPayments] = useState<PaymentRecord[]>([]);
+  const [showPaymentForm, setShowPaymentForm] = useState<{ show: boolean, sellerId: string }>({ show: false, sellerId: '' });
   const [modal, setModal] = useState<{
     show: boolean;
     type: 'ALERT' | 'CONFIRM' | 'SELLER_FORM';
@@ -196,7 +205,11 @@ const App = () => {
           setTicketCount(ticketsData.length);
         }
 
-        // 4. Cargar Aplicaciones
+        // 4. Cargar Pagos a Vendedores
+        const { data: payData } = await supabase.from('kerifa_payments').select('*').order('date', { ascending: false });
+        if (payData) setPayments(payData);
+
+        // 5. Cargar Aplicaciones
         const { data: appsData } = await supabase.from('kerifa_applications').select('*').order('created_at', { ascending: false });
         if (appsData) setApplications(appsData);
       } catch (error) {
@@ -336,11 +349,60 @@ const App = () => {
   };
 
   const deleteSellerInSupabase = async (id: string) => {
-    showConfirm('⚠️ ELIMINAR', '¿Estás seguro de que quieres eliminar este vendedor?', async () => {
+    showConfirm('⚠️ SEGURIDAD CRÍTICA', 'Al eliminar al vendedor, todas sus ventas pasarán a ser propiedad del ADMINISTRADOR para no perder los datos de los clientes. ¿Deseas continuar?', async () => {
+      setIsLoading(true);
+      // Reasignar tickets al administrador (null seller_id)
+      const { error: updError } = await supabase.from('kerifa_tickets').update({ seller_id: null }).eq('seller_id', id);
+      if (updError) { showAlert('ERROR', 'No se pudieron reasignar los números: ' + updError.message); setIsLoading(false); return; }
+
       const { error } = await supabase.from('sellers').delete().eq('id', id);
+      setIsLoading(false);
       if (error) showAlert('ERROR', "No se pudo eliminar: " + error.message);
-      else { setSellers(prev => prev.filter(s => s.id !== id)); setSelectedSeller(null); }
+      else {
+        setSellers(prev => prev.filter(s => s.id !== id));
+        setSelectedSeller(null);
+        showAlert('ÉXITO', 'Vendedor eliminado. Sus ventas ahora aparecen como ventas del Administrador.');
+      }
     });
+  };
+
+  const exportDataToCSV = () => {
+    try {
+      let csv = "NUMERO,ESTADO,VENDEDOR,COMPRADOR,TELEFONO,VALOR,COMISION\n";
+      tickets.forEach(t => {
+        const seller = sellers.find(s => s.id === (t.sellerId || t.seller_id))?.name || 'ADMIN';
+        csv += `${t.id},${t.status},${seller},${t.participant?.name || 'N/A'},${t.participant?.phone || 'N/A'},${config.ticketPriceUsd},${(config.ticketPriceUsd * (config.commissionPct / 100)).toFixed(2)}\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `RESPALDO_KERIFA_${new Date().toISOString().split('T')[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showAlert('ÉXITO', 'Respaldo generado y descargado correctamente.');
+    } catch (e) {
+      showAlert('ERROR', 'No se pudo generar el respaldo.');
+    }
+  };
+
+  const registerPayment = async (amount: number, notes: string) => {
+    if (!showPaymentForm.sellerId) return;
+    const newPay = {
+      seller_id: showPaymentForm.sellerId,
+      amount,
+      notes,
+      date: new Date().toISOString()
+    };
+    const { data, error } = await supabase.from('kerifa_payments').insert([newPay]).select();
+    if (error) { showAlert('ERROR', 'No se pudo registrar: ' + error.message); }
+    else {
+      setPayments(prev => [data[0], ...prev]);
+      setShowPaymentForm({ show: false, sellerId: '' });
+      showAlert('ÉXITO', 'Pago registrado en la libreta bancaria.');
+    }
   };
 
   const handleLogin = () => {
@@ -753,9 +815,9 @@ const App = () => {
 
       {/* Tabs */}
       <div className="px-6 pt-6 pb-2 flex gap-2 overflow-x-auto scrollbar-hide">
-        {(['CONFIG', 'SELLERS', 'VENTAS', 'CANDIDATOS'] as const).map(tab => (
+        {(['CONFIG', 'SELLERS', 'VENTAS', 'CANDIDATOS', 'CUENTAS'] as const).map(tab => (
           <button key={tab} onClick={() => setAdminTab(tab)} className={`whitespace-nowrap px-4 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${adminTab === tab ? 'glass neon-border-gold text-primary' : 'text-white/30'}`}>
-            {tab === 'CONFIG' ? 'Ajustes' : tab === 'SELLERS' ? 'Vendedores' : tab === 'VENTAS' ? 'Ventas' : 'Candidatos'}
+            {tab === 'CONFIG' ? 'Ajustes' : tab === 'SELLERS' ? 'Vendedores' : tab === 'VENTAS' ? 'Ventas' : tab === 'CANDIDATOS' ? 'Candidatos' : 'Cuentas'}
           </button>
         ))}
       </div>
@@ -1049,6 +1111,63 @@ const App = () => {
             </div>
           </div>
         )}
+
+        {/* ===== CUENTAS TAB (Libreta Bancaria) ===== */}
+        {adminTab === 'CUENTAS' && (
+          <div className="space-y-6 pb-20">
+            <div className="flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <span className="material-icons-round text-primary/70">account_balance</span>
+                <h2 className="text-xl font-bold tracking-tight uppercase italic">Control de Balance</h2>
+              </div>
+              <button
+                onClick={exportDataToCSV}
+                className="bg-white/5 border border-white/10 px-4 py-2 rounded-xl text-[10px] font-bold text-primary flex items-center gap-2 active:scale-95 transition-all"
+              >
+                <span className="material-icons-round text-sm">cloud_download</span> RESPALDO CSV
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {sellers.map(s => {
+                const sTickets = tickets.filter(t => (t.sellerId || t.seller_id) === s.id && t.status === 'PAGADO');
+                const earned = sTickets.length * config.ticketPriceUsd * (s.commissionRate || (config.commissionPct / 100));
+                const paid = payments.filter(p => p.seller_id === s.id).reduce((sum, p) => sum + p.amount, 0);
+                const balance = earned - paid;
+
+                return (
+                  <div key={s.id} className="glass p-6 rounded-[32px] border-white/5">
+                    <div className="flex justify-between items-start mb-4">
+                      <h4 className="text-white font-bold uppercase italic">{s.name}</h4>
+                      <div className="text-right">
+                        <p className="text-[10px] text-white/40 font-bold uppercase">Balance Pendiente</p>
+                        <p className={`text-xl font-black ${balance > 0 ? 'text-primary' : 'text-accent-emerald'}`}>${balance.toFixed(2)}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 mb-6">
+                      <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
+                        <p className="text-[8px] text-white/30 uppercase font-bold mb-1">Total Comisiones</p>
+                        <p className="text-sm font-bold text-white">${earned.toFixed(2)}</p>
+                      </div>
+                      <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
+                        <p className="text-[8px] text-white/30 uppercase font-bold mb-1">Pagado a Vendedor</p>
+                        <p className="text-sm font-bold text-white">${paid.toFixed(2)}</p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setShowPaymentForm({ show: true, sellerId: s.id })}
+                      className="w-full py-4 bg-primary text-black font-black text-[10px] uppercase tracking-widest rounded-2xl active:scale-95 transition-all"
+                    >
+                      REGISTRAR PAGO (ABONO)
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </main>
 
       {/* ===== CANDIDATOS TAB ===== */}
@@ -1242,6 +1361,30 @@ const App = () => {
             <p className="text-white/40 text-[10px] uppercase font-bold tracking-[0.2em] leading-relaxed">Cada venta te acerca a tus metas.<br />Tu comisión actual es del {sellerStats.ratePct}%</p>
           </div>
         </section>
+
+        {/* Seller Wallet / Ledger */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <span className="material-icons-round text-primary/70">account_balance_wallet</span>
+            <h2 className="text-lg font-bold text-white uppercase italic tracking-tighter">Mi Estado de Cuenta</h2>
+          </div>
+
+          <div className="glass p-6 rounded-[32px] border-white/5 grid grid-cols-2 gap-4">
+            <div className="bg-white/5 p-4 rounded-2xl border border-white/5">
+              <p className="text-[9px] text-white/40 font-bold uppercase tracking-widest mb-1">Ganado</p>
+              <p className="text-xl font-bold text-accent-emerald">${sellerStats.commission.toFixed(2)}</p>
+            </div>
+            <div className="bg-white/5 p-4 rounded-2xl border border-white/5 text-right">
+              <p className="text-[9px] text-white/40 font-bold uppercase tracking-widest mb-1">Cobrado</p>
+              <p className="text-xl font-bold text-primary">${payments.filter(p => p.seller_id === currentSeller?.id).reduce((sum, p) => sum + p.amount, 0).toFixed(2)}</p>
+            </div>
+          </div>
+
+          <div className="bg-primary/5 p-6 rounded-[32px] border border-primary/10 flex justify-between items-center">
+            <p className="text-[10px] text-primary/80 font-bold uppercase tracking-[0.2em]">Balance Pendiente:</p>
+            <p className="text-2xl font-black text-primary">${(sellerStats.commission - payments.filter(p => p.seller_id === currentSeller?.id).reduce((sum, p) => sum + p.amount, 0)).toFixed(2)}</p>
+          </div>
+        </section>
       </main>
     </div>
   );
@@ -1317,6 +1460,42 @@ const App = () => {
           {view === 'TALONARIO' && renderTalonario()}
           {view === 'ADMIN' && renderAdmin()}
           {view === 'SELLER_HUB' && renderSellerHub()}
+
+          {view === 'SELLER_HUB' && renderSellerHub()}
+
+          {/* PAYMENT FORM MODAL */}
+          {showPaymentForm.show && (
+            <div className="fixed inset-0 z-[10006] flex items-center justify-center p-6 glass-heavy backdrop-blur-3xl animate-fade-in text-white">
+              <div className="bg-[#0c0c0c] w-full max-w-sm rounded-[40px] border border-white/10 shadow-2xl overflow-hidden animate-scale-up">
+                <div className="p-8 text-center bg-primary/10 border-b border-white/5">
+                  <h3 className="text-lg font-bold uppercase italic tracking-widest">Registrar Pago</h3>
+                  <p className="text-[9px] text-white/40 font-bold uppercase mt-1">Abono a libreta bancaria</p>
+                </div>
+                <div className="p-8 space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-white/30 ml-2 uppercase">Monto a pagar ($)</label>
+                    <input id="pay-amount" type="number" placeholder="0.00" className="casino-input w-full text-xl font-bold" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-white/30 ml-2 uppercase">Nota / Descripción</label>
+                    <input id="pay-notes" placeholder="EJ: PAGO SEMANA 2" className="casino-input w-full text-xs" />
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setShowPaymentForm({ show: false, sellerId: '' })} className="flex-1 py-4 glass rounded-2xl text-[10px] font-bold uppercase">Cerrar</button>
+                    <button
+                      onClick={() => {
+                        const amt = parseFloat((document.getElementById('pay-amount') as HTMLInputElement).value);
+                        const notes = (document.getElementById('pay-notes') as HTMLInputElement).value;
+                        if (amt > 0) registerPayment(amt, notes);
+                        else showAlert('ERROR', 'Ingrese un monto válido');
+                      }}
+                      className="flex-[2] py-4 bg-primary text-black font-black rounded-2xl text-[10px] uppercase"
+                    >Confirmar Pago</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {showAffiliateModal && renderAffiliateModal()}
 
