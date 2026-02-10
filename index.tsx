@@ -79,6 +79,19 @@ const App = () => {
   const [ticketCount, setTicketCount] = useState<number>(100);
   const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
   const [warningModal, setWarningModal] = useState<{ show: boolean; tickets: Ticket[]; newCount: number }>({ show: false, tickets: [], newCount: 0 });
+  const [referralId, setReferralId] = useState<string | null>(null);
+
+  // --- Referral Sensor ---
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get('ref');
+    if (ref) {
+      localStorage.setItem('kerifa_ref', ref);
+      setReferralId(ref);
+    } else {
+      setReferralId(localStorage.getItem('kerifa_ref'));
+    }
+  }, []);
 
 
   // --- Countdown ---
@@ -230,7 +243,7 @@ const App = () => {
     };
   }, []);
 
-  const isClientMode = useMemo(() => new URLSearchParams(window.location.search).has('ref'), []);
+  const isClientMode = useMemo(() => !!referralId, [referralId]);
 
   const ticketStats = useMemo(() => {
     const sold = tickets.filter(t => t.status !== 'AVAILABLE');
@@ -1038,17 +1051,22 @@ const App = () => {
                   </div>
                   <p className="text-xs text-white/40 mt-1">${config.ticketPriceUsd} • #{t.id}</p>
                 </div>
-                <div className="flex flex-col gap-1.5 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0">
                   {t.participant?.phone && (
                     <button onClick={(e) => {
                       e.stopPropagation();
                       const dateStr = config.drawTimestamp ? new Date(config.drawTimestamp).toLocaleDateString('es-VE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'Pendiente';
                       const statusMsg = t.status === 'PAGADO' ? '✅ PAGADO - ¡Mucha Suerte!' : '⏳ PENDIENTE DE PAGO';
-                      const msg = `🎫 *COMPROBANTE DE RESERVA* 🎫\n*${config.drawTitle}*\n\nHola *${t.participant!.name}* 👋\n\nTe informamos el estado de tu participación:\n🎟️ Número: *#${t.id}*\n📊 Estado: ${statusMsg}\n\n📅 Sorteo: ${dateStr}\n💰 Precio: $${config.ticketPriceUsd}\n\n⚠️ Recuerda que para ganar, el boleto debe estar pagado antes del sorteo.`;
+                      const msg = `🎫 *COMPROBANTE* 🎫\n*${config.drawTitle}*\n\nHola *${t.participant!.name}* 👋\n\n🎟️ Número: *#${t.id}*\n📊 Estado: ${statusMsg}\n\n💰 Total: $${config.ticketPriceUsd}\n\nGracias por participar. 🙏`;
                       window.open(`https://wa.me/${t.participant!.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
-                    }} className="w-8 h-8 rounded-lg bg-[#25D366]/20 flex items-center justify-center"><span className="material-icons-round text-[#25D366] text-sm">message</span></button>
+                    }} className="w-9 h-9 rounded-xl bg-[#25D366]/10 flex items-center justify-center border border-[#25D366]/20 transition-all active:scale-90"><span className="material-icons-round text-[#25D366] text-base">message</span></button>
                   )}
-                  <span className="material-icons-round text-white/20 text-center">chevron_right</span>
+
+                  {t.status === 'REVISANDO' && (
+                    <button onClick={() => { if (confirm(`¿Confirmar pago del #${t.id}?`)) updateTicketInSupabase(t.id, { status: 'PAGADO' }); }} className="w-9 h-9 rounded-xl bg-accent-emerald/10 flex items-center justify-center border border-accent-emerald/20 transition-all active:scale-90"><span className="material-icons-round text-accent-emerald text-base">check</span></button>
+                  )}
+
+                  <button onClick={() => { if (confirm(`¿Cancelar reserva del #${t.id}?`)) updateTicketInSupabase(t.id, { status: 'AVAILABLE', participant: undefined, seller_id: undefined } as any); }} className="w-9 h-9 rounded-xl bg-red-500/10 flex items-center justify-center border border-red-500/20 transition-all active:scale-90"><span className="material-icons-round text-red-500/60 text-base">close</span></button>
                 </div>
               </div>
             ))}
@@ -1110,30 +1128,40 @@ const App = () => {
                       const dateStr = config.drawTimestamp ? new Date(config.drawTimestamp).toLocaleDateString('es-VE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'Pendiente';
                       const message = `🌟 *${config.drawTitle}* 🌟\n\n¡Hola! 👋 Mi nombre es *${n.toUpperCase()}*.\n\nHe reservado los siguientes números:\n🎟️ *${selection.join(', ')}*\n\n📅 *Fecha del Sorteo:* ${dateStr}\n💰 *Total a pagar:* $${selection.length * config.ticketPriceUsd}\n\n⚠️ *Condiciones:* Para participar y ganar, el boleto debe estar *PAGADO* antes del sorteo.\n\n¡Gracias! 🙏`;
 
-                      window.open(`https://wa.me/${config.whatsapp}?text=${encodeURIComponent(message)}`, '_blank');
-                      const rid = new URLSearchParams(window.location.search).get('ref') || '';
+                      setIsLoading(true);
 
-                      // 1. Actualización Optimista (Bloqueo instantáneo en UI)
-                      const participantData = { name: n, phone: p, timestamp: Date.now() };
-                      setTickets(prev => prev.map(t => selection.includes(t.id) ? { ...t, status: 'REVISANDO' as TicketStatus, participant: participantData, sellerId: rid || undefined } : t));
+                      // Validación Atómica antes de proceder
+                      supabase.from('kerifa_tickets').select('id, status').in('id', selection).then(({ data: currentTickets }) => {
+                        const taken = currentTickets?.filter(t => t.status !== 'AVAILABLE') || [];
 
-                      // 2. Enviar a Supabase
-                      const updates: any = {
-                        status: 'REVISANDO',
-                        participant: participantData
-                      };
-                      if (rid) updates.seller_id = rid;
-
-                      supabase.from('kerifa_tickets').update(updates).in('id', selection).then(({ error }) => {
-                        if (error) {
-                          console.error("Error al reservar:", error);
-                          alert("Hubo un error al guardar tu reserva. Por favor intenta de nuevo.");
-                          // Revertir si falla
-                          setTickets(prev => prev.map(t => selection.includes(t.id) ? { ...t, status: 'AVAILABLE' as TicketStatus, participant: undefined } : t));
+                        if (taken.length > 0) {
+                          alert(`⚠️ ¡Lo sentimos! Los números [${taken.map(t => t.id).join(', ')}] ya han sido vendidos o reservados por otra persona. Por favor elige otros.`);
+                          setIsLoading(false);
+                          setSelection([]);
+                          return;
                         }
-                      });
 
-                      setSelection([]); setShowCheckout(false); setView('HOME');
+                        // Si están libres, procedemos
+                        window.open(`https://wa.me/${config.whatsapp}?text=${encodeURIComponent(message)}`, '_blank');
+                        const finalRef = referralId || '';
+
+                        // 1. Actualización Optimista (UI instantánea)
+                        const participantData = { name: n, phone: p, timestamp: Date.now() };
+                        setTickets(prev => prev.map(t => selection.includes(t.id) ? { ...t, status: 'REVISANDO' as TicketStatus, participant: participantData, sellerId: finalRef || undefined } : t));
+
+                        // 2. Enviar a Supabase
+                        const updates: any = { status: 'REVISANDO', participant: participantData };
+                        if (finalRef) updates.seller_id = finalRef;
+
+                        supabase.from('kerifa_tickets').update(updates).in('id', selection).then(({ error }) => {
+                          setIsLoading(false);
+                          if (error) {
+                            console.error("Error al reservar:", error);
+                            alert("Hubo un error al guardar tu reserva. Por favor intenta de nuevo.");
+                          }
+                          setSelection([]); setShowCheckout(false); setView('HOME');
+                        });
+                      });
                     }
                   }} className="w-full gold-gradient text-black font-extrabold py-5 rounded-2xl shadow-gold-glow active:scale-95 transition-all text-lg uppercase tracking-widest flex items-center justify-center gap-2">
                     <span className="material-icons-round">check_circle</span> CONFIRMAR RESERVA
