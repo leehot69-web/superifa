@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html class="dark" lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gran Rifa Premium</title>
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Outfit:wght@300;400;500;600;700;800&family=Orbitron:wght@500;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#D4AF37",
+                        "background-dark": "#0a0a0c",
+                        "accent-purple": "#bc13fe",
+                        "accent-emerald": "#10b981",
+                        "neon-purple": "#bc13fe",
+                        "neon-green": "#39ff14",
+                        "glass-bg": "rgba(255, 255, 255, 0.05)",
+                        "glass-border": "rgba(255, 255, 255, 0.1)",
+                    },
+                    fontFamily: {
+                        display: ["Cinzel", "serif"],
+                        sans: ["Outfit", "sans-serif"],
+                        digital: ["Orbitron", "sans-serif"],
+                        body: ["Plus Jakarta Sans", "sans-serif"],
+                    },
+                    borderRadius: { DEFAULT: "12px" },
+                    boxShadow: {
+                        'neon-p': '0 0 15px #bc13fe, 0 0 5px #bc13fe',
+                        'neon-g': '0 0 15px #39ff14, 0 0 5px #39ff14',
+                        'gold-glow': '0 0 20px rgba(212, 175, 55, 0.3)',
+                    }
+                },
+            },
+        };
+    </script>
+
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: radial-gradient(circle at top right, #1a1a2e, #0a0a0c);
+            color: #ffffff;
+            -webkit-tap-highlight-color: transparent;
+            min-height: 100dvh;
+        }
+
+        /* --- Glass Morphism --- */
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-dark {
+            background: rgba(18, 18, 20, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* --- Gold Gradient --- */
+        .gold-gradient {
+            background: linear-gradient(135deg, #BF953F, #FCF6BA, #B38728, #FBF5B7, #AA771C);
+        }
+
+        /* --- Neon Borders --- */
+        .neon-border-gold {
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.3), inset 0 0 5px rgba(212, 175, 55, 0.2);
+            border: 1px solid rgba(212, 175, 55, 0.5);
+        }
+
+        .neon-border-purple {
+            box-shadow: 0 0 15px rgba(188, 19, 254, 0.4);
+            border: 1px solid rgba(188, 19, 254, 0.6);
+        }
+
+        .neon-purple-glow {
+            box-shadow: 0 0 15px rgba(191, 90, 242, 0.4);
+            border: 1.5px solid #BF5AF2;
+        }
+
+        .neon-emerald {
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+        }
+
+        .neon-gold-glow {
+            box-shadow: 0 0 15px rgba(234, 179, 8, 0.3);
+        }
+
+        /* --- Ticker / Marquee --- */
+        .ticker-wrap {
+            width: 100%;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.5);
+            border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+        }
+
+        .ticker {
+            display: inline-block;
+            white-space: nowrap;
+            padding-right: 100%;
+            animation: ticker 25s linear infinite;
+        }
+
+        @keyframes ticker {
+            0% {
+                transform: translate3d(0, 0, 0);
+            }
+
+            100% {
+                transform: translate3d(-100%, 0, 0);
+            }
+        }
+
+        /* --- Hexagon Frame --- */
+        .hexagon-frame {
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+        }
+
+        /* --- Radial Progress BG --- */
+        .radial-progress-container {
+            background: radial-gradient(circle at center, rgba(168, 85, 247, 0.15) 0%, transparent 70%);
+        }
+
+        /* --- Admin Inputs --- */
+        .casino-input {
+            background: rgba(0, 0, 0, 0.6) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 16px 20px;
+            width: 100%;
+            color: white !important;
+            font-size: 14px;
+            outline: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            color-scheme: dark;
+        }
+
+        .casino-input::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Force dark styling on date/number inputs */
+        .casino-input[type="date"],
+        .casino-input[type="number"],
+        .casino-input[type="datetime-local"] {
+            background: rgba(0, 0, 0, 0.6) !important;
+            color: white !important;
+            color-scheme: dark;
+        }
+
+        .casino-input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            cursor: pointer;
+        }
+
+        .casino-input:focus {
+            box-shadow: 0 0 10px rgba(212, 175, 55, 0.3), inset 0 0 5px rgba(212, 175, 55, 0.2);
+            border: 1px solid rgba(212, 175, 55, 0.5);
+        }
+
+        .casino-input-purple:focus {
+            box-shadow: 0 0 15px rgba(188, 19, 254, 0.4);
+            border: 1px solid rgba(188, 19, 254, 0.6);
+        }
+
+        /* --- LED Strip --- */
+        @keyframes led-flow {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+
+            100% {
+                background-position: 0% 50%;
+            }
+        }
+
+        .led-strip-top {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #D4AF37, #ffffff, #D4AF37, transparent);
+            background-size: 200% 100%;
+            animation: led-flow 3s linear infinite;
+            z-index: 9999;
+        }
+
+        /* --- Scrollbar Hide --- */
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        /* --- Seller Card Forest --- */
+        .seller-card-forest {
+            background: linear-gradient(135deg, #064e3b 0%, #022c22 100%);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* --- Total Cash Card --- */
+        .total-cash-card {
+            background: linear-gradient(135deg, #064e3b 0%, #002b1f 100%);
+            border-radius: 28px;
+        }
+
+        /* --- Modal Green Header --- */
+        .modal-header-green {
+            background: linear-gradient(135deg, #004d40 0%, #00695c 100%);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+</body>
+
+</html>
