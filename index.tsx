@@ -80,6 +80,8 @@ const App = () => {
   const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
   const [warningModal, setWarningModal] = useState<{ show: boolean; tickets: Ticket[]; newCount: number }>({ show: false, tickets: [], newCount: 0 });
   const [referralId, setReferralId] = useState<string | null>(null);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [showGoldenTicket, setShowGoldenTicket] = useState<{ show: boolean; numbers: string[] }>({ show: false, numbers: [] });
   const [modal, setModal] = useState<{
     show: boolean;
     type: 'ALERT' | 'CONFIRM' | 'SELLER_FORM';
@@ -87,6 +89,9 @@ const App = () => {
     message: string;
     onConfirm?: (val1?: string, val2?: string) => void;
   }>({ show: false, type: 'ALERT', title: '', message: '' });
+
+  const isAdmin = view === 'ADMIN';
+  const isSeller = view === 'SELLER_HUB';
 
   const showAlert = (title: string, message: string) => setModal({ show: true, type: 'ALERT', title, message });
   const showConfirm = (title: string, message: string, onConfirm: () => void) => setModal({ show: true, type: 'CONFIRM', title, message, onConfirm });
@@ -609,18 +614,24 @@ const App = () => {
             return (
               <button
                 key={t.id}
-                disabled={isOccupied}
-                onClick={() => setSelection(p => isSelected ? p.filter(x => x !== t.id) : [...p, t.id])}
+                onClick={() => {
+                  if (isAdmin || isSeller) {
+                    if (isOccupied) setSelectedTicketId(t.id);
+                    else setSelection(p => isSelected ? p.filter(x => x !== t.id) : [...p, t.id]);
+                  } else {
+                    if (!isOccupied) setSelection(p => isSelected ? p.filter(x => x !== t.id) : [...p, t.id]);
+                  }
+                }}
                 className={`rounded-xl h-14 flex flex-col items-center justify-center transition-all duration-200 ${isOccupied
-                  ? 'bg-black/40 border border-white/5 opacity-40 cursor-not-allowed'
+                  ? (isAdmin || isSeller) ? 'bg-primary/20 border border-primary/40' : 'bg-black/40 border border-white/5 opacity-40 cursor-not-allowed'
                   : isSelected
                     ? 'glass-dark neon-purple-glow'
                     : 'glass-dark border border-white/5 opacity-80 hover:border-primary/40'
                   }`}
               >
-                <span className={`text-xs font-bold ${isOccupied ? 'text-gray-600 line-through' : isSelected ? 'text-primary' : 'text-white'}`}>{t.id}</span>
-                <span className={`text-[8px] uppercase font-bold ${isOccupied ? 'text-gray-700' : isSelected ? 'text-accent-purple' : 'text-gray-500'}`}>
-                  {isOccupied ? 'Vendido' : isSelected ? 'Tuyo' : 'Libre'}
+                <span className={`text-xs font-bold ${isOccupied ? (isAdmin || isSeller) ? 'text-primary' : 'text-gray-600 line-through' : isSelected ? 'text-primary' : 'text-white'}`}>{t.id}</span>
+                <span className={`text-[8px] uppercase font-bold ${(isAdmin || isSeller) && isOccupied ? 'text-primary/60' : isOccupied ? 'text-gray-700' : isSelected ? 'text-accent-purple' : 'text-gray-500'}`}>
+                  {isOccupied ? (isAdmin || isSeller) ? 'Detalle' : 'Vendido' : isSelected ? 'Tuyo' : 'Libre'}
                 </span>
               </button>
             );
@@ -939,7 +950,7 @@ const App = () => {
             {/* Ticket List */}
             <div className="space-y-3">
               {tickets.filter(t => t.status !== 'AVAILABLE').map(t => (
-                <div key={t.id} className="glass p-4 rounded-2xl flex items-center gap-3 border-white/5">
+                <div key={t.id} onClick={() => setSelectedTicketId(t.id)} className="glass p-4 rounded-2xl flex items-center gap-3 border-white/5 cursor-pointer active:scale-95 transition-all">
                   <div className={`w-11 h-11 rounded-xl flex items-center justify-center border font-bold text-sm shrink-0 ${t.status === 'PAGADO' ? 'bg-accent-emerald/20 border-accent-emerald/40 text-accent-emerald' : 'bg-orange-500/20 border-orange-500/40 text-orange-400'}`}>
                     {t.id}
                   </div>
@@ -1051,7 +1062,7 @@ const App = () => {
           <div className="flex justify-between items-end"><h3 className="text-white/80 text-sm font-bold uppercase tracking-widest">Mis Ventas</h3></div>
           <div className="space-y-3">
             {tickets.filter(t => t.sellerId === currentSeller?.id && t.status !== 'AVAILABLE').map(t => (
-              <div key={t.id} className="glass p-4 rounded-2xl flex items-center gap-4 active:scale-95 transition-transform border-white/5">
+              <div key={t.id} onClick={() => setSelectedTicketId(t.id)} className="glass p-4 rounded-2xl flex items-center gap-4 active:scale-95 transition-transform border-white/5 cursor-pointer">
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center border font-bold shadow-lg ${t.status === 'PAGADO' ? 'bg-accent-emerald/20 border-accent-emerald/40 text-accent-emerald' : 'bg-orange-500/20 border-orange-500/40 text-orange-500'}`}>
                   {t.id}
                 </div>
@@ -1095,10 +1106,16 @@ const App = () => {
   // ============================================================
   if (isLoading) {
     return (
-      <div className="fixed inset-0 z-[10000] bg-[#0A0A0B] flex flex-col items-center justify-center">
-        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-        <img src={LOGO} className="w-32 mt-8 animate-pulse drop-shadow-gold-glow" />
-        <p className="text-primary font-bold mt-4 animate-pulse uppercase tracking-[0.3em] text-[10px]">Cargando Rifa Premium...</p>
+      <div className="fixed inset-0 z-[10000] bg-[#0A0A0B] flex flex-col items-center justify-center p-10 text-center animate-fade-in">
+        <div className="relative w-48 h-48 mb-10">
+          <div className="absolute inset-0 border-2 border-primary/20 rounded-full animate-ping"></div>
+          <div className="absolute inset-[-10px] border border-accent-purple/10 rounded-full animate-spin" style={{ animationDuration: '3s' }}></div>
+          <img src={LOGO} className="w-full h-full object-contain drop-shadow-gold-glow animate-pulse scale-110" />
+        </div>
+        <div className="space-y-3">
+          <h3 className="text-primary font-bold uppercase tracking-[0.5em] text-[12px] animate-pulse">Procesando Fortuna</h3>
+          <p className="text-white/20 text-[9px] uppercase tracking-[0.3em] font-medium italic">Sincronizando con el destino...</p>
+        </div>
       </div>
     );
   }
@@ -1170,9 +1187,11 @@ const App = () => {
                           setIsLoading(false);
                           if (error) {
                             console.error("Error al reservar:", error);
-                            alert("Hubo un error al guardar tu reserva. Por favor intenta de nuevo.");
+                            showAlert("ERROR", "Hubo un error al guardar tu reserva. Por favor intenta de nuevo.");
+                          } else {
+                            setShowGoldenTicket({ show: true, numbers: [...selection] });
                           }
-                          setSelection([]); setShowCheckout(false); setView('HOME');
+                          setSelection([]); setShowCheckout(false);
                         });
                       });
                     }
@@ -1343,6 +1362,82 @@ const App = () => {
                     >
                       Forzar
                     </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TICKET DETAILS MODAL (FOR ADMIN/SELLER) */}
+          {selectedTicketId && (() => {
+            const t = tickets.find(x => x.id === selectedTicketId);
+            if (!t) return null;
+            const seller = sellers.find(s => s.id === t.sellerId);
+            return (
+              <div className="fixed inset-0 z-[10000] flex items-center justify-center p-6 glass-heavy backdrop-blur-xl animate-fade-in text-white">
+                <div className="bg-[#0c0c0c] w-full max-w-sm rounded-[40px] border border-white/10 shadow-2xl overflow-hidden animate-scale-up">
+                  <div className="p-8 text-center bg-primary/10 relative">
+                    <button onClick={() => setSelectedTicketId(null)} className="absolute top-6 right-6 text-white/30"><span className="material-icons-round">close</span></button>
+                    <div className="w-16 h-16 mx-auto rounded-2xl bg-primary/20 text-primary flex items-center justify-center mb-4 border border-primary/30">
+                      <span className="text-2xl font-bold">#{t.id}</span>
+                    </div>
+                    <h3 className="text-xl font-bold tracking-widest uppercase">DETALLE DE VENTA</h3>
+                  </div>
+                  <div className="p-8 space-y-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-4 glass p-4 rounded-2xl border-white/5">
+                        <span className="material-icons-round text-primary/60">person</span>
+                        <div><p className="text-[10px] text-white/40 uppercase font-bold tracking-widest">Participante</p><p className="font-bold text-sm">{t.participant?.name || '---'}</p></div>
+                      </div>
+                      <div className="flex items-center gap-4 glass p-4 rounded-2xl border-white/5">
+                        <span className="material-icons-round text-primary/60">phone</span>
+                        <div><p className="text-[10px] text-white/40 uppercase font-bold tracking-widest">Teléfono</p><p className="font-bold text-sm">{t.participant?.phone || '---'}</p></div>
+                      </div>
+                      <div className="flex items-center gap-4 glass p-4 rounded-2xl border-white/5">
+                        <span className="material-icons-round text-primary/60">storefront</span>
+                        <div><p className="text-[10px] text-white/40 uppercase font-bold tracking-widest">Vendido por</p><p className="font-bold text-sm text-primary">{seller?.name || 'Organic / Principal'}</p></div>
+                      </div>
+                    </div>
+                    {isAdmin && (
+                      <div className="flex gap-3">
+                        {t.status === 'REVISANDO' && (
+                          <button onClick={() => { updateTicketInSupabase(t.id, { status: 'PAGADO' }); setSelectedTicketId(null); }} className="flex-1 py-4 rounded-2xl bg-accent-emerald/20 text-accent-emerald font-bold uppercase tracking-widest text-[10px] border border-accent-emerald/30">Verificar Pago</button>
+                        )}
+                        <button onClick={() => { if (confirm("¿Eliminar reserva?")) { updateTicketInSupabase(t.id, { status: 'AVAILABLE', participant: undefined, seller_id: undefined } as any); setSelectedTicketId(null); } }} className="flex-1 py-4 rounded-2xl bg-red-500/20 text-red-400 font-bold uppercase tracking-widest text-[10px] border border-red-500/30">Eliminar</button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* GOLDEN TICKET MODAL (SUCCESS) */}
+          {showGoldenTicket.show && (
+            <div className="fixed inset-0 z-[10001] flex items-center justify-center p-6 glass-heavy backdrop-blur-2xl animate-fade-in overflow-y-auto">
+              <div className="max-w-sm w-full animate-golden-entry py-10">
+                <div className="relative bg-[#D4AF37] p-1 rounded-sm shadow-[0_0_50px_rgba(212,175,55,0.6)]">
+                  <div className="absolute top-[-8px] left-0 right-0 flex justify-between px-2 overflow-hidden">
+                    {Array.from({ length: 15 }).map((_, i) => <div key={i} className="w-4 h-4 bg-[#0a0a0b] rounded-full -mt-2"></div>)}
+                  </div>
+                  <div className="absolute bottom-[-8px] left-0 right-0 flex justify-between px-2 overflow-hidden">
+                    {Array.from({ length: 15 }).map((_, i) => <div key={i} className="w-4 h-4 bg-[#0a0a0b] rounded-full -mb-2"></div>)}
+                  </div>
+
+                  <div className="bg-[#D4AF37] border-2 border-[#8B732A] p-6 text-[#4a3a05] text-center font-serif py-12 relative overflow-hidden">
+                    <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#4a3a05 1px, transparent 1px)', backgroundSize: '20px 20px' }}></div>
+                    <div className="relative z-10">
+                      <h4 className="text-[10px] tracking-[0.4em] uppercase font-bold mb-4 opacity-70">¡Felicidades!</h4>
+                      <h2 className="text-4xl font-extrabold mb-2 tracking-tighter italic">TICKET DORADO</h2>
+                      <div className="w-12 h-0.5 bg-[#4a3a05] mx-auto mb-6"></div>
+                      <p className="text-xs font-bold leading-relaxed mb-8 px-6 uppercase tracking-wider">Has adquirido el pase a la fortuna.<br />Números de la suerte:</p>
+                      <div className="flex flex-wrap justify-center gap-2 mb-10">
+                        {showGoldenTicket.numbers.map(n => <div key={n} className="bg-[#4a3a05] text-[#D4AF37] w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold shadow-xl">{n}</div>)}
+                      </div>
+                      <img src={LOGO} className="w-16 mx-auto mb-6 grayscale opacity-60" />
+                      <p className="text-[9px] font-bold uppercase tracking-[0.5em] mb-10 opacity-70">Suerte en el sorteo</p>
+                      <button onClick={() => { setShowGoldenTicket({ show: false, numbers: [] }); setView('HOME'); }} className="w-full bg-[#4a3a05] text-[#D4AF37] font-bold py-4 rounded-xl uppercase text-xs tracking-[0.2em] shadow-2xl active:scale-95 transition-all">ENTRAR AL SORTEO</button>
+                    </div>
                   </div>
                 </div>
               </div>
