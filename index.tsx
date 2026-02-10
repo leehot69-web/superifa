@@ -307,7 +307,10 @@ const App = () => {
     if (error) {
       showAlert('ERROR', 'No se pudo enviar la solicitud: ' + error.message);
     } else {
-      showAlert('ÉXITO', 'Solicitud enviada correctamente. Nos comunicaremos contigo pronto.');
+      const waMsg = `🚀 *NUEVA SOLICITUD DE AFILIADO* 🚀\n\n👤 *Nombre:* ${formData.full_name}\n🆔 *Cédula:* ${formData.id_number}\n🏠 *Dirección:* ${formData.address}\n📱 *WhatsApp:* ${formData.phone}\n📞 *Familiar:* ${formData.family_phone}\n\n_Favor contactar para validación de documentos._`;
+      window.open(`https://wa.me/${config.whatsapp}?text=${encodeURIComponent(waMsg)}`, '_blank');
+
+      showAlert('ÉXITO', 'Solicitud registrada correctamente. Se ha abierto WhatsApp para notificar al administrador.');
       setShowAffiliateModal(false);
     }
   };
