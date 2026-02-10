@@ -105,6 +105,11 @@ const App = () => {
   // --- Supabase: Carga inicial y sincronización en tiempo real ---
   useEffect(() => {
     const fetchInitialData = async () => {
+      if (!supabase) {
+        console.error("Supabase client is not initialized.");
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
 
       try {

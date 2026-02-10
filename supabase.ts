@@ -1,12 +1,15 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Usamos variables de entorno para mayor seguridad y facilidad al subir a Vercel
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-    console.error("ERROR: Faltan las variables de entorno de Supabase. Verifica tu archivo .env o la configuración en Vercel.");
+// No lanzamos error aquí para evitar que la app entera muera antes de cargar.
+// El error se manejará dentro de los componentes.
+export const supabase = (supabaseUrl && supabaseAnonKey)
+    ? createClient(supabaseUrl, supabaseAnonKey)
+    : null as any;
+
+if (!supabase) {
+    console.warn("⚠️ Supabase: Faltan variables de entorno. La aplicación no podrá conectar con la base de datos.");
 }
-
-export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '');
