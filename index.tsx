@@ -268,9 +268,14 @@ const App = () => {
   }, [tickets, config]);
 
   const sellerStats = useMemo(() => {
-    if (!currentSeller) return { totalSales: 0, count: 0 };
+    if (!currentSeller) return { totalSales: 0, count: 0, commission: 0 };
     const my = tickets.filter(t => t.sellerId === currentSeller.id && t.status !== 'AVAILABLE');
-    return { totalSales: my.length * config.ticketPriceUsd, count: my.length };
+    const totalSales = my.length * config.ticketPriceUsd;
+    // Usar la comisión del vendedor si existe, sino la global
+    const rate = (currentSeller.commissionRate !== undefined && currentSeller.commissionRate !== 0.1)
+      ? currentSeller.commissionRate
+      : (config.commissionPct / 100);
+    return { totalSales, count: my.length, commission: totalSales * rate, ratePct: rate * 100 };
   }, [tickets, currentSeller, config]);
 
   // --- Supabase Write Handlers ---
@@ -1036,10 +1041,14 @@ const App = () => {
               <span className="text-primary text-xs font-bold mt-1">{sellerStats.count} / {Math.max(Math.floor(tickets.length * 0.2), 10)} Tickets</span>
             </div>
           </div>
-          <div className="mt-8 flex gap-8 w-full px-4">
-            <div className="flex-1 text-center"><p className="text-white/40 text-xs uppercase font-bold tracking-tighter">Comisión</p><p className="text-xl font-bold text-accent-emerald">${Math.floor(sellerStats.totalSales * (currentSeller?.commissionRate || 0.1))}</p></div>
-            <div className="w-px h-10 bg-white/10"></div>
-            <div className="flex-1 text-center"><p className="text-white/40 text-xs uppercase font-bold tracking-tighter">Total USD</p><p className="text-xl font-bold text-primary">${sellerStats.totalSales}</p></div>
+          <div className="flex-1 text-center font-serif">
+            <p className="text-white/40 text-[10px] uppercase font-bold tracking-tighter">Comisión ({sellerStats.ratePct}%)</p>
+            <p className="text-2xl font-bold text-accent-emerald">${sellerStats.commission.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+          </div>
+          <div className="w-px h-10 bg-white/10"></div>
+          <div className="flex-1 text-center font-serif">
+            <p className="text-white/40 text-[10px] uppercase font-bold tracking-tighter">Total Ventas</p>
+            <p className="text-2xl font-bold text-primary">${sellerStats.totalSales.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
           </div>
         </section>
 
