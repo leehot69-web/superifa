@@ -1,0 +1,17 @@
+{
+    "name": "Gran Rifa Premium",
+    "short_name": "RifaPremium",
+    "description": "Participa en la Gran Rifa Premium y gana premios increíbles.",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0a0a0c",
+    "theme_color": "#D4AF37",
+    "icons": [
+        {
+            "src": "descarga-removebg-preview.png",
+            "sizes": "192x192 512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}

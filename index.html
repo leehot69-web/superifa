@@ -12,6 +12,14 @@
         rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
 
+    <!-- PWA Settings -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#D4AF37">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="/descarga-removebg-preview.png">
+    <link rel="icon" type="image/png" href="/descarga-removebg-preview.png">
+
     <script>
         tailwind.config = {
             darkMode: "class",
@@ -236,6 +244,15 @@
 <body>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js', { scope: '/' })
+                    .then(reg => console.log('SW registered', reg))
+                    .catch(err => console.error('SW registration failed', err));
+            });
+        }
+    </script>
 </body>
 
 </html>
