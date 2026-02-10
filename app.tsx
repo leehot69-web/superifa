@@ -662,17 +662,16 @@ const AdminLogin: React.FC<{
   sellers: Seller[]
 }> = ({ onSuccess, onClose, correctPin, sellers }) => {
   const [pin, setPin] = useState('');
-  const [error, setError] = useState(false);
-  const handlePin = (digit: string) => {
-    const newPin = pin + digit;
-    // Max length heuristic: 4 or match master
-    if (newPin.length > Math.max(correctPin.length, 4)) return;
 
+  const handlePin = (digit: string) => {
+    if (pin.length >= 6) return;
+    const newPin = pin + digit;
     setPin(newPin);
 
     // Check Master Admin
     if (newPin === correctPin) {
       onSuccess('admin');
+      setPin('');
       return;
     }
 
@@ -680,33 +679,70 @@ const AdminLogin: React.FC<{
     const matchedSeller = sellers.find(s => s.pin === newPin && s.active);
     if (matchedSeller) {
       onSuccess('seller', matchedSeller);
+      setPin('');
       return;
     }
   };
 
-  // Auto-clear logic handled manually
-
   return (
-    <div className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center p-8 animate-in fade-in duration-300">
-      <div className="mb-8 text-center">
-        <div className="text-amber-500 flex justify-center scale-150 mb-6"><Icons.Lock /></div>
-        <h2 className="font-premium text-2xl gold-text mb-1 tracking-widest">ACCESO</h2>
-        <p className="text-gray-600 text-[9px] uppercase tracking-[0.3em] font-black">ADMIN O VENDEDOR</p>
-      </div>
-      <div className="flex gap-4 mb-10 h-12 justify-center">
-        {pin.split('').map((_, i) => (
-          <div key={i} className="w-4 h-4 rounded-full bg-amber-500 animate-pulse"></div>
-        ))}
-        {pin.length === 0 && <span className="text-gray-700 text-xs tracking-widest">INGRESE PIN</span>}
-      </div>
-      <div className="grid grid-cols-3 gap-4 w-full max-w-[280px]">
-        {['1', '2', '3', '4', '5', '6', '7', '8', '9', '', '0', 'X'].map((val, idx) => (
-          <button key={idx} onClick={() => { if (val === 'X') setPin(pin.slice(0, -1)); else if (val) handlePin(val); }} className={`aspect-square rounded-2xl flex items-center justify-center text-2xl font-black transition-all active:scale-90 ${!val ? 'invisible' : val === 'X' ? 'text-red-500' : 'bg-white/5 text-white hover:bg-white/10 border border-white/5'}`}>
-            {val}
+    <div className="fixed inset-0 z-[1000] bg-[#050505]/98 backdrop-blur-2xl flex flex-col items-center justify-center p-8 animate-in fade-in duration-300">
+      <div className="w-full max-w-sm flex flex-col items-center">
+        <div className="relative mb-8 text-center flex flex-col items-center">
+          <div className="absolute inset-0 bg-amber-500/20 blur-3xl rounded-full"></div>
+          <div className="text-amber-500 scale-150 mb-4 relative z-10"><Icons.Lock /></div>
+          <h2 className="font-premium text-2xl gold-text mb-1 tracking-widest relative z-10">ACCESO</h2>
+          <p className="text-gray-500 text-[10px] uppercase tracking-[0.3em] font-black relative z-10">IDENTIFICACIÓN REQUERIDA</p>
+        </div>
+
+        {/* PIN Indicators */}
+        <div className="flex gap-4 mb-12 h-6 justify-center">
+          {[0, 1, 2, 3, 4].map((_, i) => (
+            <div
+              key={i}
+              className={`w-4 h-4 rounded-full transition-all duration-300 ${pin.length > i ? 'bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,1)] scale-110' : 'bg-white/10'
+                }`}
+            ></div>
+          ))}
+        </div>
+
+        {/* Virtual Keyboard */}
+        <div className="grid grid-cols-3 gap-4 w-full max-w-[280px]">
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => (
+            <button
+              key={n}
+              onClick={() => handlePin(n.toString())}
+              className="aspect-square rounded-3xl bg-white/5 border border-white/5 flex items-center justify-center text-2xl font-black text-white hover:bg-white/10 active:bg-amber-500 active:text-black transition-all"
+            >
+              {n}
+            </button>
+          ))}
+          <button
+            onClick={() => setPin(pin.slice(0, -1))}
+            className="aspect-square rounded-3xl bg-red-500/10 border border-red-500/10 flex items-center justify-center text-red-500 transition-all active:scale-95"
+          >
+            <span className="material-icons-round text-2xl">backspace</span>
           </button>
-        ))}
+          <button
+            onClick={() => handlePin('0')}
+            className="aspect-square rounded-3xl bg-white/5 border border-white/5 flex items-center justify-center text-2xl font-black text-white hover:bg-white/10 active:bg-amber-500 active:text-black transition-all"
+          >
+            0
+          </button>
+          <button
+            onClick={onClose}
+            className="aspect-square rounded-3xl bg-white/5 border border-white/5 flex items-center justify-center text-gray-500 transition-all active:scale-95"
+          >
+            <span className="material-icons-round text-2xl">close</span>
+          </button>
+        </div>
+
+        <button
+          onClick={onClose}
+          className="mt-12 text-gray-600 hover:text-white text-[10px] font-black uppercase tracking-widest underline decoration-amber-500/30 transition-colors"
+        >
+          CANCELAR ACCESO
+        </button>
       </div>
-      <button onClick={onClose} className="mt-10 text-gray-600 text-[10px] font-black uppercase tracking-widest underline decoration-amber-500/30">CANCELAR</button>
     </div>
   );
 };

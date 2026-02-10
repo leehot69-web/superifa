@@ -328,8 +328,32 @@ const App = () => {
   };
 
   const createSellerInSupabase = async (name: string, pin: string) => {
+    // 1. Verificar si el PIN es el del administrador
+    if (pin === ADMIN_PIN) {
+      showAlert('PIN RESTRINGIDO', "Este PIN está reservado para el administrador. Por favor, elige uno diferente.");
+      return null;
+    }
+
+    // 2. Verificar si el PIN ya existe entre los vendedores
+    const exists = sellers.some(s => s.pin === pin);
+    if (exists) {
+      showAlert('PIN DUPLICADO', "Este PIN ya está asignado a otro vendedor. Por favor, elige uno diferente.");
+      return null;
+    }
+
     const { data, error } = await supabase.from('sellers').insert([{ name, pin, active: true }]).select();
     if (error) { showAlert('ERROR', "No se pudo crear el vendedor: " + error.message); return null; }
+
+    // Actualizar estado local inmediatamente
+    const newSeller = {
+      id: data[0].id,
+      name: data[0].name,
+      pin: data[0].pin,
+      active: true,
+      commissionRate: 0.1
+    };
+    setSellers(prev => [...prev, newSeller]);
+
     return data[0];
   };
 
@@ -406,13 +430,29 @@ const App = () => {
   };
 
   const handleLogin = () => {
-    if (showLogin === 'ADMIN' && pin === ADMIN_PIN) { setView('ADMIN'); setShowLogin(null); }
-    else if (showLogin === 'SELLER') {
+    if (!pin) return;
+
+    if (showLogin === 'ADMIN') {
+      if (pin === ADMIN_PIN) {
+        setView('ADMIN');
+        setShowLogin(null);
+        setPin('');
+      } else {
+        showAlert('ACCESO DENEGADO', "El PIN de Administrador es incorrecto.");
+        setPin('');
+      }
+    } else if (showLogin === 'SELLER') {
       const s = sellers.find(x => x.pin === pin);
-      if (s) { setCurrentSeller(s); setView('SELLER_HUB'); setShowLogin(null); }
-      else showAlert('ACCESO DENEGADO', "El PIN ingresado es incorrecto.");
+      if (s) {
+        setCurrentSeller(s);
+        setView('SELLER_HUB');
+        setShowLogin(null);
+        setPin('');
+      } else {
+        showAlert('ACCESO DENEGADO', "El PIN ingresado es incorrecto.");
+        setPin('');
+      }
     }
-    setPin('');
   };
 
   const handleVideoEnd = () => {
@@ -1881,14 +1921,72 @@ const App = () => {
             </div>
           )}
 
-          {/* LOGIN MODAL */}
           {showLogin && (
-            <div className="fixed inset-0 z-[9500] bg-black/98 backdrop-blur-3xl flex flex-col items-center justify-center p-12">
-              <span className="material-icons-round text-primary text-8xl mb-10">security</span>
-              <p className="text-white/40 text-[10px] uppercase tracking-[0.4em] font-bold mb-8">{showLogin === 'ADMIN' ? 'Acceso Admin' : 'Acceso Vendedor'}</p>
-              <input type="password" value={pin} onChange={e => setPin(e.target.value)} placeholder="• • • •" className="bg-transparent border-b-4 border-primary text-center text-5xl text-white py-6 w-56 mb-16 outline-none font-mono tracking-[0.6em] focus:border-accent-purple transition-all" />
-              <button onClick={handleLogin} className="gold-gradient text-black font-bold px-20 py-5 rounded-full uppercase text-sm tracking-[0.3em] shadow-gold-glow active:scale-95 transition-all">ACCEDER</button>
-              <button onClick={() => { setShowLogin(null); setPin(''); }} className="mt-12 text-zinc-600 font-bold uppercase text-[10px] tracking-widest underline">Cancelar</button>
+            <div className="fixed inset-0 z-[9500] bg-[#050505]/98 backdrop-blur-3xl flex flex-col items-center justify-center p-6 sm:p-12 overflow-y-auto">
+              <div className="w-full max-w-sm flex flex-col items-center">
+                <div className="relative mb-10">
+                  <div className="absolute inset-0 bg-primary/20 blur-3xl rounded-full"></div>
+                  <span className="material-icons-round text-primary text-7xl sm:text-8xl relative z-10">security</span>
+                </div>
+
+                <h2 className="text-white font-black text-2xl tracking-tighter italic mb-2 uppercase">Identificación</h2>
+                <p className="text-white/40 text-[10px] uppercase tracking-[0.4em] font-bold mb-10">
+                  {showLogin === 'ADMIN' ? 'Panel Administrativo' : 'Acceso Distribuidor'}
+                </p>
+
+                {/* PIN Display */}
+                <div className="flex gap-4 mb-16">
+                  {[0, 1, 2, 3, 4].map((_, i) => (
+                    <div
+                      key={i}
+                      className={`w-4 h-4 rounded-full transition-all duration-300 ${pin.length > i
+                        ? 'bg-primary shadow-[0_0_15px_rgba(212,175,55,1)] scale-110'
+                        : 'bg-white/10'
+                        }`}
+                    />
+                  ))}
+                </div>
+
+                {/* Virtual Keyboard */}
+                <div className="grid grid-cols-3 gap-3 sm:gap-4 w-full max-w-[280px]">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => (
+                    <button
+                      key={n}
+                      onClick={() => setPin(prev => prev.length < 5 ? prev + n : prev)}
+                      className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl font-bold text-white hover:bg-white/10 active:bg-primary active:text-black active:scale-95 transition-all outline-none"
+                    >
+                      {n}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setPin(prev => prev.slice(0, -1))}
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 hover:bg-red-500/20 active:bg-red-500 active:text-white active:scale-95 transition-all outline-none"
+                  >
+                    <span className="material-icons-round">backspace</span>
+                  </button>
+                  <button
+                    onClick={() => setPin(prev => prev.length < 5 ? prev + '0' : prev)}
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-white/5 border border-white/10 flex items-center justify-center text-2xl font-bold text-white hover:bg-white/10 active:bg-primary active:text-black active:scale-95 transition-all outline-none"
+                  >
+                    0
+                  </button>
+                  <button
+                    onClick={handleLogin}
+                    disabled={pin.length < 4}
+                    className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl gold-gradient border border-primary/50 flex items-center justify-center text-black shadow-gold-glow active:scale-95 transition-all disabled:opacity-20 disabled:grayscale outline-none"
+                  >
+                    <span className="material-icons-round text-3xl">login</span>
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => { setShowLogin(null); setPin(''); }}
+                  className="mt-12 text-zinc-600 hover:text-white font-bold uppercase text-[10px] tracking-widest transition-colors flex items-center gap-2 group"
+                >
+                  <span className="material-icons-round text-sm group-hover:-translate-x-1 transition-transform">arrow_back</span>
+                  Volver al Inicio
+                </button>
+              </div>
             </div>
           )}
           {/* SYSTEM MODAL (REPLACEMENT FOR ALERT/CONFIRM/PROMPT) */}
@@ -1906,9 +2004,45 @@ const App = () => {
 
                 <div className="p-8 space-y-6">
                   {modal.type === 'SELLER_FORM' ? (
-                    <div className="space-y-4">
-                      <input id="modal-input-1" placeholder="NOMBRE DEL VENDEDOR" className="casino-input w-full uppercase" />
-                      <input id="modal-input-2" placeholder="PIN (4 DÍGITOS)" className="casino-input w-full" maxLength={4} />
+                    <div className="space-y-6">
+                      <div className="space-y-4">
+                        <input id="modal-input-1" placeholder="NOMBRE DEL VENDEDOR" className="casino-input w-full uppercase" />
+                        <div className="relative">
+                          <input id="modal-input-2" value={pin} readOnly placeholder="PIN (4 DÍGITOS)" className="casino-input w-full text-center text-2xl tracking-[0.5em] font-mono" maxLength={4} />
+                          <p className="text-[9px] text-white/30 text-center mt-2 uppercase tracking-widest">Usa el teclado de abajo para asignar el PIN</p>
+                        </div>
+                      </div>
+
+                      {/* Mini Virtual Keyboard for PIN creation */}
+                      <div className="grid grid-cols-3 gap-4 w-full max-w-[280px] mx-auto">
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => (
+                          <button
+                            key={n}
+                            onClick={() => pin.length < 4 && setPin(prev => prev + n)}
+                            className="aspect-square rounded-3xl bg-white/5 border border-white/5 flex items-center justify-center text-2xl font-black text-white hover:bg-white/10 active:bg-primary active:text-black transition-all"
+                          >
+                            {n}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => setPin(prev => prev.slice(0, -1))}
+                          className="aspect-square rounded-3xl bg-red-500/10 border border-red-500/10 flex items-center justify-center text-red-500 transition-all active:scale-95"
+                        >
+                          <span className="material-icons-round text-2xl">backspace</span>
+                        </button>
+                        <button
+                          onClick={() => pin.length < 4 && setPin(prev => prev + '0')}
+                          className="aspect-square rounded-3xl bg-white/5 border border-white/5 flex items-center justify-center text-2xl font-black text-white hover:bg-white/10 active:bg-primary active:text-black transition-all"
+                        >
+                          0
+                        </button>
+                        <button
+                          onClick={() => setPin('')}
+                          className="aspect-square rounded-3xl bg-white/5 border border-white/5 flex items-center justify-center text-gray-500 transition-all active:scale-95"
+                        >
+                          <span className="material-icons-round text-2xl">close</span>
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <p className="text-white/60 text-center text-sm font-medium leading-relaxed">{modal.message}</p>
