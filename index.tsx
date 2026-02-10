@@ -50,7 +50,7 @@ const ADMIN_PIN = "11863";
 
 // --- Recursos Locales (servidos desde /public) ---
 const SPLASH_VIDEO = "/introsuperrifa.mp4";
-const ENTRY_VIDEO = "/videosuperrifa.mp4";
+const ENTRY_VIDEO = "/Cinematic_916_vertical_202602101612_wkprr.mp4";
 const LOGO = "/descarga-removebg-preview.png";
 
 // --- Utilidades ---
