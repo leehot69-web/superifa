@@ -114,6 +114,7 @@ const App = () => {
   const [showGoldenTicket, setShowGoldenTicket] = useState<{ show: boolean; numbers: string[] }>({ show: false, numbers: [] });
   const [showAffiliateModal, setShowAffiliateModal] = useState(false);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showPaymentForm, setShowPaymentForm] = useState<{ show: boolean, sellerId: string }>({ show: false, sellerId: '' });
   const [modal, setModal] = useState<{
     show: boolean;
@@ -318,6 +319,25 @@ const App = () => {
       supabase.removeChannel(appsChannel);
     };
   }, []);
+
+  // --- PWA Installation Logic ---
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+  }, []);
+
+  const handleInstallPWA = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+    }
+  };
 
   const isClientMode = useMemo(() => new URLSearchParams(window.location.search).has('ref'), []);
 
@@ -596,13 +616,24 @@ const App = () => {
             <p className="text-[9px] tracking-[0.2em] text-primary/60 uppercase">Premium Edition</p>
           </div>
         </div>
-        <div className="flex gap-3">
-          {!isClientMode && (
-            <>
-              <button onClick={() => setShowLogin('ADMIN')} className="w-10 h-10 rounded-full glass flex items-center justify-center"><span className="material-icons-round text-white text-xl">settings</span></button>
-              <button onClick={() => setShowLogin('SELLER')} className="w-10 h-10 rounded-full glass flex items-center justify-center"><span className="material-icons-round text-white text-xl">person</span></button>
-            </>
+        <div className="flex gap-2 items-center">
+          {deferredPrompt && (
+            <button
+              onClick={handleInstallPWA}
+              className="bg-primary/20 text-primary px-3 py-1.5 rounded-lg border border-primary/30 flex items-center gap-2 active:scale-95 transition-all text-[10px] font-black uppercase tracking-widest shadow-gold-glow animate-pulse"
+            >
+              <span className="material-icons-round text-sm">download</span>
+              Instalar App
+            </button>
           )}
+          <div className="flex gap-3">
+            {!isClientMode && (
+              <>
+                <button onClick={() => setShowLogin('ADMIN')} className="w-10 h-10 rounded-full glass flex items-center justify-center"><span className="material-icons-round text-white text-xl">settings</span></button>
+                <button onClick={() => setShowLogin('SELLER')} className="w-10 h-10 rounded-full glass flex items-center justify-center"><span className="material-icons-round text-white text-xl">person</span></button>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
