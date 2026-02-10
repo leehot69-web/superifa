@@ -31,10 +31,10 @@ interface RaffleConfig {
 
 const ADMIN_PIN = "11863";
 
-// --- Recursos de Video/Logo (GitHub superifa) ---
-const SPLASH_VIDEO = "https://github.com/leehot69-web/superifa/raw/main/introsuperrifa.mp4";
-const ENTRY_VIDEO = "https://github.com/leehot69-web/superifa/raw/main/videosuperrifa.mp4";
-const LOGO = "https://github.com/leehot69-web/superifa/raw/main/descarga-removebg-preview.png";
+// --- Recursos Locales (servidos desde /public) ---
+const SPLASH_VIDEO = "/introsuperrifa.mp4";
+const ENTRY_VIDEO = "/videosuperrifa.mp4";
+const LOGO = "/descarga-removebg-preview.png";
 
 // ============================================================
 // APP
@@ -282,8 +282,9 @@ const App = () => {
   };
 
   const handleVideoEnd = () => {
+    console.log("🎬 Video finalizado. Estado actual:", splash);
     if (splash === 'SPLASH') setSplash('ENTRY');
-    else if (splash === 'ENTRY') setSplash('DONE');
+    else setSplash('DONE');
   };
 
   // --- Regenerar tabla de tickets ---
@@ -410,7 +411,7 @@ const App = () => {
         <div className="ticker flex gap-8 items-center">
           <span className="text-[10px] text-primary flex items-center gap-1"><span className="material-icons-round text-[12px]">campaign</span> {config.tickerMessage || '¡La suerte te espera hoy!'}</span>
           <span className="text-[10px] text-primary flex items-center gap-1"><span className="material-icons-round text-[12px]">stars</span> {config.drawTitle} - ${config.ticketPriceUsd} por número</span>
-          <span className="text-[10px] text-primary flex items-center gap-1"><span className="material-icons-round text-[12px]">diamond</span> {config.prizes[0]?.name}</span>
+          <span className="text-[10px] text-primary flex items-center gap-1"><span className="material-icons-round text-[12px]">diamond</span> {config.prizes?.[0]?.name || 'Premio'}</span>
         </div>
       </div>
 
@@ -432,12 +433,12 @@ const App = () => {
         {/* Prize Card */}
         <div className="relative flex flex-col items-center">
           <div className="w-full rounded-3xl overflow-hidden border border-primary/20 shadow-gold-glow relative">
-            <img src={config.prizes[0].image} className="w-full h-56 object-cover" />
+            <img src={config.prizes?.[0]?.image || "https://images.unsplash.com/photo-1695048133142-1a20484d2569"} className="w-full h-56 object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent"></div>
             <div className="absolute bottom-0 left-0 right-0 p-5">
               <span className="bg-primary text-black text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">Premio Mayor</span>
-              <h2 className="font-display text-3xl text-white mt-2 leading-tight">{config.prizes[0].name}</h2>
-              <p className="text-sm text-primary/80 mt-1">{config.prizes[0].subtitle}</p>
+              <h2 className="font-display text-3xl text-white mt-2 leading-tight">{config.prizes?.[0]?.name || 'Gran Premio'}</h2>
+              <p className="text-sm text-primary/80 mt-1">{config.prizes?.[0]?.subtitle || 'Cargando detalles...'}</p>
             </div>
           </div>
 
@@ -462,7 +463,7 @@ const App = () => {
         {/* Secondary Prizes */}
         <div className="mt-8 space-y-3">
           <h3 className="text-xs font-bold text-gray-400 uppercase tracking-[0.2em] mb-4">Otros Premios</h3>
-          {config.prizes.slice(1).map((p, i) => (
+          {config.prizes?.slice(1).map((p, i) => (
             <div key={p.id} className="glass-dark p-4 rounded-2xl flex items-center gap-4">
               <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${i === 0 ? 'from-green-500/20 border-green-500/30' : 'from-accent-purple/20 border-accent-purple/30'} to-transparent flex items-center justify-center border shrink-0 overflow-hidden`}>
                 {p.image ? <img src={p.image} className="w-full h-full object-cover rounded-xl" /> : <span className={`material-icons-round ${i === 0 ? 'text-green-400' : 'text-accent-purple'}`}>{i === 0 ? 'watch' : 'sports_esports'}</span>}
@@ -559,11 +560,11 @@ const App = () => {
             <div className="absolute inset-0 border-2 border-primary/40 rounded-full animate-spin" style={{ animationDuration: '8s' }}></div>
             <div className="absolute inset-2 border border-accent-purple/30 rounded-full"></div>
             <div className="relative w-full h-full p-4 flex items-center justify-center">
-              <img src={config.prizes[0].image} className="w-full h-full object-contain drop-shadow-[0_0_20px_rgba(212,175,55,0.4)] rounded-2xl" />
+              <img src={config.prizes?.[0]?.image || "https://images.unsplash.com/photo-1695048133142-1a20484d2569"} className="w-full h-full object-contain drop-shadow-[0_0_20px_rgba(212,175,55,0.4)] rounded-2xl" />
             </div>
           </div>
           <p className="text-[10px] uppercase tracking-widest text-primary font-bold">Premio Mayor</p>
-          <h2 className="font-display text-2xl text-white">{config.prizes[0].name}</h2>
+          <h2 className="font-display text-2xl text-white">{config.prizes?.[0]?.name || 'Gran Premio'}</h2>
         </div>
 
         {/* Info Bar */}
