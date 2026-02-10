@@ -17,6 +17,16 @@ interface Ticket {
 }
 interface Seller { id: string; name: string; pin: string; commissionRate: number; active?: boolean; }
 interface Winner { number: string; name: string; date: string; prize: string; }
+interface Application {
+  id: string;
+  full_name: string;
+  id_number: string;
+  address: string;
+  phone: string;
+  family_phone: string;
+  status: string;
+  created_at: string;
+}
 interface RaffleConfig {
   prizes: Prize[];
   ticketPriceUsd: number;
@@ -70,7 +80,8 @@ const App = () => {
 
   // --- UI State ---
   const [view, setView] = useState<'HOME' | 'TALONARIO' | 'ADMIN' | 'SELLER_HUB'>('HOME');
-  const [adminTab, setAdminTab] = useState<'CONFIG' | 'SELLERS' | 'VENTAS'>('CONFIG');
+  const [adminTab, setAdminTab] = useState<'CONFIG' | 'SELLERS' | 'VENTAS' | 'CANDIDATOS'>('CONFIG');
+  const [applications, setApplications] = useState<Application[]>([]);
   const [currentSeller, setCurrentSeller] = useState<Seller | null>(null);
   const [showLogin, setShowLogin] = useState<'ADMIN' | 'SELLER' | null>(null);
   const [pin, setPin] = useState('');
@@ -154,7 +165,7 @@ const App = () => {
           setConfig({ ...DEFAULT_CONFIG, ...configData.data });
         }
 
-        // 2. Cargar Sellers (tabla compartida con RIFA1000)
+        // 2. Cargar Sellers
         const { data: sellersData } = await supabase
           .from('sellers')
           .select('*');
@@ -183,16 +194,11 @@ const App = () => {
             sellerId: t.seller_id
           })));
           setTicketCount(ticketsData.length);
-        } else {
-          // Si no hay tickets, inicializar con 100
-          const initialTickets = Array.from({ length: 100 }, (_, i) => ({
-            id: i.toString().padStart(3, '0'),
-            status: 'AVAILABLE' as TicketStatus
-          }));
-          await supabase.from('kerifa_tickets').insert(initialTickets);
-          setTickets(initialTickets);
-          setTicketCount(100);
         }
+
+        // 4. Cargar Aplicaciones
+        const { data: appsData } = await supabase.from('kerifa_applications').select('*').order('created_at', { ascending: false });
+        if (appsData) setApplications(appsData);
       } catch (error) {
         console.error('Error cargando datos:', error);
         showAlert('ERROR', 'No se pudieron cargar los datos de la base de datos.');
@@ -203,7 +209,7 @@ const App = () => {
 
     fetchInitialData();
 
-    // 4. Realtime: Canales (Solo si supabase existe)
+    // 4. Realtime: Canales
     if (!supabase) return;
 
     const ticketsChannel = supabase
@@ -248,15 +254,29 @@ const App = () => {
           setSellers(prev => prev.filter(s => s.id !== payload.old.id));
         } else if (payload.eventType === 'UPDATE') {
           const s = payload.new as any;
-          setSellers(prev => prev.map(seller => seller.id === s.id ? { id: s.id, name: s.name, pin: s.pin, active: s.active ?? true, commissionRate: s.commission_count || 0.1 } : seller));
+          setSellers(prev => prev.map(old => old.id === s.id ? { ...old, name: s.name, pin: s.pin, active: s.active ?? true, commissionRate: s.commission_count || 0.1 } : old));
+        }
+      })
+      .subscribe();
+
+    const appsChannel = supabase
+      .channel('apps_channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'kerifa_applications' }, (payload) => {
+        if (payload.eventType === 'INSERT') {
+          setApplications(prev => [payload.new as Application, ...prev]);
+        } else if (payload.eventType === 'DELETE') {
+          setApplications(prev => prev.filter(app => app.id !== payload.old.id));
+        } else if (payload.eventType === 'UPDATE') {
+          setApplications(prev => prev.map(app => app.id === (payload.new as Application).id ? payload.new as Application : app));
         }
       })
       .subscribe();
 
     return () => {
-      if (ticketsChannel) supabase.removeChannel(ticketsChannel);
-      if (configChannel) supabase.removeChannel(configChannel);
-      if (sellersChannel) supabase.removeChannel(sellersChannel);
+      supabase.removeChannel(ticketsChannel);
+      supabase.removeChannel(configChannel);
+      supabase.removeChannel(sellersChannel);
+      supabase.removeChannel(appsChannel);
     };
   }, []);
 
@@ -732,9 +752,11 @@ const App = () => {
       </header>
 
       {/* Tabs */}
-      <div className="px-6 pt-6 pb-2 flex gap-2">
-        {(['CONFIG', 'SELLERS', 'VENTAS'] as const).map(tab => (
-          <button key={tab} onClick={() => setAdminTab(tab)} className={`flex-1 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${adminTab === tab ? 'glass neon-border-gold text-primary' : 'text-white/30'}`}>{tab === 'CONFIG' ? 'Ajustes' : tab === 'SELLERS' ? 'Vendedores' : 'Ventas'}</button>
+      <div className="px-6 pt-6 pb-2 flex gap-2 overflow-x-auto scrollbar-hide">
+        {(['CONFIG', 'SELLERS', 'VENTAS', 'CANDIDATOS'] as const).map(tab => (
+          <button key={tab} onClick={() => setAdminTab(tab)} className={`whitespace-nowrap px-4 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${adminTab === tab ? 'glass neon-border-gold text-primary' : 'text-white/30'}`}>
+            {tab === 'CONFIG' ? 'Ajustes' : tab === 'SELLERS' ? 'Vendedores' : tab === 'VENTAS' ? 'Ventas' : 'Candidatos'}
+          </button>
         ))}
       </div>
 
@@ -1028,6 +1050,71 @@ const App = () => {
           </div>
         )}
       </main>
+
+      {/* ===== CANDIDATOS TAB ===== */}
+      {adminTab === 'CANDIDATOS' && (
+        <main className="p-6 space-y-6">
+          <div className="flex items-center gap-2">
+            <span className="material-icons-round text-primary/70">assignment_ind</span>
+            <h2 className="text-xl font-bold tracking-tight uppercase italic">Solicitudes de Afiliados</h2>
+          </div>
+
+          <div className="space-y-4">
+            {applications.length === 0 && (
+              <div className="glass p-10 rounded-3xl border-dashed border-white/10 text-center">
+                <p className="text-white/20 text-xs font-bold uppercase tracking-[0.2em]">No hay solicitudes pendientes</p>
+              </div>
+            )}
+            {applications.map(app => (
+              <div key={app.id} className="glass p-6 rounded-[32px] border-white/5 relative overflow-hidden group">
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h4 className="text-white font-bold uppercase italic tracking-tighter">{app.full_name}</h4>
+                    <p className="text-[10px] text-white/40 font-bold tracking-widest mt-0.5">ID: {app.id_number}</p>
+                  </div>
+                  <span className="text-[9px] bg-primary/10 text-primary px-3 py-1 rounded-full font-bold uppercase tracking-widest">
+                    {new Date(app.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+
+                <div className="space-y-3 mb-6">
+                  <div className="flex items-center gap-2 text-white/60">
+                    <span className="material-icons-round text-sm">place</span>
+                    <p className="text-[11px] font-medium leading-relaxed">{app.address}</p>
+                  </div>
+                  <div className="flex items-center gap-2 text-primary">
+                    <span className="material-icons-round text-sm">phone</span>
+                    <p className="text-[11px] font-bold">{app.phone}</p>
+                  </div>
+                  <div className="flex items-center gap-2 text-white/40">
+                    <span className="material-icons-round text-sm">group</span>
+                    <p className="text-[11px] font-medium">Familiar: {app.family_phone}</p>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-4 border-t border-white/5">
+                  <button
+                    onClick={() => window.open(`https://wa.me/${app.phone.replace(/\D/g, '')}`, '_blank')}
+                    className="flex-1 py-4 glass rounded-2xl border-white/10 text-primary text-[10px] font-extrabold uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-primary/10 transition-colors"
+                  >
+                    <span className="material-icons-round text-sm">chat</span>
+                    Entrevistar
+                  </button>
+                  <button
+                    onClick={() => showConfirm('BORRAR', '¿Eliminar esta solicitud?', async () => {
+                      await supabase.from('kerifa_applications').delete().eq('id', app.id);
+                      setApplications(prev => prev.filter(x => x.id !== app.id));
+                    })}
+                    className="w-14 py-4 glass rounded-2xl border-white/10 text-red-500/40 flex items-center justify-center hover:bg-red-500/10 transition-colors"
+                  >
+                    <span className="material-icons-round text-sm">delete</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </main>
+      )}
 
       {/* Save Button */}
       <div className="fixed bottom-10 left-0 right-0 px-6 flex justify-center z-50">
