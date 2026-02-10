@@ -927,7 +927,12 @@ const App = () => {
                   </div>
                   <div className="flex flex-col gap-1.5 shrink-0">
                     {t.participant?.phone && (
-                      <button onClick={() => window.open(`https://wa.me/${t.participant!.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hola ${t.participant!.name}, tu número #${t.id} de ${config.drawTitle} está ${t.status === 'PAGADO' ? '✅ PAGADO' : '⏳ PENDIENTE de pago ($${config.ticketPriceUsd})'}.`)}`, '_blank')} className="w-8 h-8 rounded-lg bg-[#25D366]/20 flex items-center justify-center"><span className="material-icons-round text-[#25D366] text-sm">message</span></button>
+                      <button onClick={() => {
+                        const dateStr = config.drawTimestamp ? new Date(config.drawTimestamp).toLocaleDateString('es-VE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'Pendiente';
+                        const statusMsg = t.status === 'PAGADO' ? '✅ PAGADO - ¡Mucha Suerte!' : '⏳ PENDIENTE DE PAGO';
+                        const msg = `🎫 *COMPROBANTE DE RESERVA* 🎫\n*${config.drawTitle}*\n\nHola *${t.participant!.name}* 👋\n\nTe informamos el estado de tu participación:\n🎟️ Número: *#${t.id}*\n📊 Estado: ${statusMsg}\n\n📅 Sorteo: ${dateStr}\n💰 Precio: $${config.ticketPriceUsd}\n\n⚠️ Recuerda que para ganar, el boleto debe estar pagado antes del sorteo.`;
+                        window.open(`https://wa.me/${t.participant!.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+                      }} className="w-8 h-8 rounded-lg bg-[#25D366]/20 flex items-center justify-center"><span className="material-icons-round text-[#25D366] text-sm">message</span></button>
                     )}
                     {t.status === 'REVISANDO' && (
                       <button onClick={() => updateTicketInSupabase(t.id, { status: 'PAGADO' })} className="w-8 h-8 rounded-lg bg-accent-emerald/20 flex items-center justify-center"><span className="material-icons-round text-accent-emerald text-sm">check</span></button>
@@ -1032,7 +1037,18 @@ const App = () => {
                   </div>
                   <p className="text-xs text-white/40 mt-1">${config.ticketPriceUsd} • #{t.id}</p>
                 </div>
-                <span className="material-icons-round text-white/20">chevron_right</span>
+                <div className="flex flex-col gap-1.5 shrink-0">
+                  {t.participant?.phone && (
+                    <button onClick={(e) => {
+                      e.stopPropagation();
+                      const dateStr = config.drawTimestamp ? new Date(config.drawTimestamp).toLocaleDateString('es-VE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'Pendiente';
+                      const statusMsg = t.status === 'PAGADO' ? '✅ PAGADO - ¡Mucha Suerte!' : '⏳ PENDIENTE DE PAGO';
+                      const msg = `🎫 *COMPROBANTE DE RESERVA* 🎫\n*${config.drawTitle}*\n\nHola *${t.participant!.name}* 👋\n\nTe informamos el estado de tu participación:\n🎟️ Número: *#${t.id}*\n📊 Estado: ${statusMsg}\n\n📅 Sorteo: ${dateStr}\n💰 Precio: $${config.ticketPriceUsd}\n\n⚠️ Recuerda que para ganar, el boleto debe estar pagado antes del sorteo.`;
+                      window.open(`https://wa.me/${t.participant!.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(msg)}`, '_blank');
+                    }} className="w-8 h-8 rounded-lg bg-[#25D366]/20 flex items-center justify-center"><span className="material-icons-round text-[#25D366] text-sm">message</span></button>
+                  )}
+                  <span className="material-icons-round text-white/20 text-center">chevron_right</span>
+                </div>
               </div>
             ))}
             {sellerStats.count === 0 && <div className="text-center py-16 text-white/10 font-bold uppercase text-sm tracking-widest">Sin ventas aún</div>}
@@ -1090,7 +1106,10 @@ const App = () => {
                     const n = (document.getElementById('checkout-name') as HTMLInputElement).value;
                     const p = (document.getElementById('checkout-phone') as HTMLInputElement).value;
                     if (n && p) {
-                      window.open(`https://wa.me/${config.whatsapp}?text=RESERVA: ${selection.join(', ')} de ${n}`, '_blank');
+                      const dateStr = config.drawTimestamp ? new Date(config.drawTimestamp).toLocaleDateString('es-VE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'Pendiente';
+                      const message = `🌟 *${config.drawTitle}* 🌟\n\n¡Hola! 👋 Mi nombre es *${n.toUpperCase()}*.\n\nHe reservado los siguientes números:\n🎟️ *${selection.join(', ')}*\n\n📅 *Fecha del Sorteo:* ${dateStr}\n💰 *Total a pagar:* $${selection.length * config.ticketPriceUsd}\n\n⚠️ *Condiciones:* Para participar y ganar, el boleto debe estar *PAGADO* antes del sorteo.\n\n¡Gracias! 🙏`;
+
+                      window.open(`https://wa.me/${config.whatsapp}?text=${encodeURIComponent(message)}`, '_blank');
                       const rid = new URLSearchParams(window.location.search).get('ref') || '';
 
                       // 1. Actualización Optimista (Bloqueo instantáneo en UI)
@@ -1130,7 +1149,8 @@ const App = () => {
             const stPending = st.filter(t => t.status === 'REVISANDO');
             const totalVentas = st.length * config.ticketPriceUsd;
             const comision = totalVentas * (config.commissionPct / 100);
-            const shareText = `📊 *REPORTE DE VENTAS*\n👤 Vendedor: ${selectedSeller.name}\n🎟️ Números vendidos: ${st.length}\n✅ Pagados: ${stPaid.length}\n⏳ Pendientes: ${stPending.length}\n💰 Total: $${totalVentas.toFixed(2)}\n🏆 Comisión (${config.commissionPct}%): $${comision.toFixed(2)}\n\n📋 *Números:*\n${st.map(t => `  #${t.id} - ${t.participant?.name || 'N/A'} (${t.status === 'PAGADO' ? '✅ Pagado' : '⏳ Pendiente'})`).join('\n')}`;
+            const dateStr = config.drawTimestamp ? new Date(config.drawTimestamp).toLocaleDateString('es-VE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'Pendiente';
+            const shareText = `📊 *REPORTE DE VENTAS - ${config.drawTitle}*\n\n👤 *Vendedor:* ${selectedSeller.name}\n🎟️ *Números vendidos:* ${st.length}\n✅ *Pagados:* ${stPaid.length}\n⏳ *Pendientes:* ${stPending.length}\n💰 *Monto Recaudado:* $${totalVentas.toFixed(2)}\n🏆 *Comisión (${config.commissionPct}%):* $${comision.toFixed(2)}\n\n📅 *Sorteo:* ${dateStr}\n\n📋 *DETALLE DE NÚMEROS:*\n${st.map(t => `• #${t.id} - ${t.participant?.name || 'N/A'} (${t.status === 'PAGADO' ? '✅ Pagado' : '⏳ Pendiente'})`).join('\n')}\n\n🌟 _Generado desde Gran Rifa Premium_`;
 
             return (
               <div className="fixed inset-0 z-[9200] bg-black/98 backdrop-blur-xl flex flex-col overflow-y-auto">
