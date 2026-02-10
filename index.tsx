@@ -80,6 +80,17 @@ const App = () => {
   const [selectedSeller, setSelectedSeller] = useState<Seller | null>(null);
   const [warningModal, setWarningModal] = useState<{ show: boolean; tickets: Ticket[]; newCount: number }>({ show: false, tickets: [], newCount: 0 });
   const [referralId, setReferralId] = useState<string | null>(null);
+  const [modal, setModal] = useState<{
+    show: boolean;
+    type: 'ALERT' | 'CONFIRM' | 'SELLER_FORM';
+    title: string;
+    message: string;
+    onConfirm?: (val1?: string, val2?: string) => void;
+  }>({ show: false, type: 'ALERT', title: '', message: '' });
+
+  const showAlert = (title: string, message: string) => setModal({ show: true, type: 'ALERT', title, message });
+  const showConfirm = (title: string, message: string, onConfirm: () => void) => setModal({ show: true, type: 'CONFIRM', title, message, onConfirm });
+  const showSellerForm = (onConfirm: (name: string, pin: string) => void) => setModal({ show: true, type: 'SELLER_FORM', title: 'NUEVO DISTRIBUIDOR', message: '', onConfirm: (v1, v2) => onConfirm(v1 || '', v2 || '') });
 
   // --- Referral Sensor ---
   useEffect(() => {
@@ -178,7 +189,7 @@ const App = () => {
         }
       } catch (error) {
         console.error('Error cargando datos:', error);
-        alert('Error conectando con Supabase. Verifica que hayas ejecutado el SQL.');
+        showAlert('ERROR', 'No se pudieron cargar los datos de la base de datos.');
       }
 
       setIsLoading(false);
@@ -274,14 +285,16 @@ const App = () => {
 
   const createSellerInSupabase = async (name: string, pin: string) => {
     const { data, error } = await supabase.from('sellers').insert([{ name, pin, active: true }]).select();
-    if (error) { alert("Error: " + error.message); return null; }
+    if (error) { showAlert('ERROR', "No se pudo crear el vendedor: " + error.message); return null; }
     return data[0];
   };
 
   const deleteSellerInSupabase = async (id: string) => {
-    if (!confirm("¿Eliminar vendedor?")) return;
-    const { error } = await supabase.from('sellers').delete().eq('id', id);
-    if (error) alert("Error: " + error.message);
+    showConfirm('⚠️ ELIMINAR', '¿Estás seguro de que quieres eliminar este vendedor?', async () => {
+      const { error } = await supabase.from('sellers').delete().eq('id', id);
+      if (error) showAlert('ERROR', "No se pudo eliminar: " + error.message);
+      else { setSellers(prev => prev.filter(s => s.id !== id)); setSelectedSeller(null); }
+    });
   };
 
   const handleLogin = () => {
@@ -289,7 +302,7 @@ const App = () => {
     else if (showLogin === 'SELLER') {
       const s = sellers.find(x => x.pin === pin);
       if (s) { setCurrentSeller(s); setView('SELLER_HUB'); setShowLogin(null); }
-      else alert("PIN incorrecto");
+      else showAlert('ACCESO DENEGADO', "El PIN ingresado es incorrecto.");
     }
     setPin('');
   };
@@ -338,33 +351,33 @@ const App = () => {
       setTicketCount(count);
       setSelection([]);
       setWarningModal({ show: false, tickets: [], newCount: 0 });
+      showAlert('ÉXITO', "Talonario sincronizado correctamente.");
     } catch (e) {
       console.error(e);
-      alert("Error al sincronizar talonario");
+      showAlert('ERROR', "Error al sincronizar el talonario.");
     }
     setIsLoading(false);
   };
 
   // --- Reiniciar todo a cero ---
   const resetEverything = async () => {
-    if (!confirm('⚠️ ¿Estás seguro de que quieres REINICIAR TODO?\n\nEsto borrará TODAS las ventas, reservas y selecciones.')) return;
-    if (!confirm('🔴 ÚLTIMA CONFIRMACIÓN\n\n¿Realmente quieres borrar TODO y empezar de cero? Esta acción NO se puede deshacer.')) return;
+    showConfirm('⚠️ REINICIO TOTAL', '¿Estás seguro de que quieres borrar TODAS las ventas y empezar de cero? Esta acción no se puede deshacer.', async () => {
+      setIsLoading(true);
+      const padLen = ticketCount >= 1000 ? 4 : ticketCount >= 100 ? 3 : 2;
+      const cleanTickets = Array.from({ length: ticketCount }, (_, i) => ({ id: i.toString().padStart(padLen, '0'), status: 'AVAILABLE' as TicketStatus }));
 
-    setIsLoading(true);
-    const padLen = ticketCount >= 1000 ? 4 : ticketCount >= 100 ? 3 : 2;
-    const cleanTickets = Array.from({ length: ticketCount }, (_, i) => ({ id: i.toString().padStart(padLen, '0'), status: 'AVAILABLE' as TicketStatus }));
-
-    try {
-      await supabase.from('kerifa_tickets').delete().neq('id', 'RESET');
-      await supabase.from('kerifa_tickets').insert(cleanTickets.map(t => ({ id: t.id, status: t.status as string })));
-      setTickets(cleanTickets);
-      setSelection([]);
-      alert('✅ Todo ha sido reiniciado a cero.');
-    } catch (e) {
-      console.error(e);
-      alert("Error al reiniciar");
-    }
-    setIsLoading(false);
+      try {
+        await supabase.from('kerifa_tickets').delete().neq('id', 'RESET');
+        await supabase.from('kerifa_tickets').insert(cleanTickets.map(t => ({ id: t.id, status: t.status as string })));
+        setTickets(cleanTickets);
+        setSelection([]);
+        showAlert('ÉXITO', 'Todo ha sido reiniciado correctamente.');
+      } catch (e) {
+        console.error(e);
+        showAlert('ERROR', "Error al intentar reiniciar los datos.");
+      }
+      setIsLoading(false);
+    });
   };
 
   // ============================================================
@@ -866,10 +879,10 @@ const App = () => {
               <span className="text-xs text-primary/60 font-bold">{sellers.length} vendedores</span>
             </div>
 
-            <button onClick={async () => {
-              const name = prompt("Nombre del Vendedor:");
-              const sellerPin = prompt("PIN de 4 dígitos:");
-              if (name && sellerPin) await createSellerInSupabase(name, sellerPin);
+            <button onClick={() => {
+              showSellerForm(async (name, pin) => {
+                if (name && pin) await createSellerInSupabase(name, pin);
+              });
             }} className="w-full glass p-4 rounded-2xl text-primary font-bold text-sm uppercase tracking-widest flex items-center justify-center gap-2 neon-border-gold">
               <span className="material-icons-round">add_circle</span> Nuevo Distribuidor
             </button>
@@ -966,7 +979,7 @@ const App = () => {
         <button
           onClick={() => {
             updateConfigInSupabase(config);
-            alert("✅ Configuración guardada en Supabase");
+            showAlert("ÉXITO", "Configuración guardada correctamente.");
           }}
           className="bg-accent-emerald text-black font-bold py-4 px-12 rounded-full flex items-center gap-3 neon-emerald hover:scale-105 transition-transform active:scale-95 shadow-[0_0_30px_rgba(16,185,129,0.4)]"
         >
@@ -1027,7 +1040,7 @@ const App = () => {
               <p className="text-white/50 text-xs mb-1">Link Único</p>
               <p className="text-white font-medium truncate text-sm">{window.location.origin}?ref={currentSeller?.id}</p>
             </div>
-            <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?ref=${currentSeller?.id}`); alert("¡Link copiado!"); }} className="bg-primary hover:bg-yellow-500 transition-colors text-black px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shrink-0">
+            <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?ref=${currentSeller?.id}`); showAlert("COPIADO", "¡Link de referido copiado!"); }} className="bg-primary hover:bg-yellow-500 transition-colors text-black px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shrink-0">
               <span className="material-icons-round text-lg">content_copy</span> Copiar
             </button>
           </div>
@@ -1063,10 +1076,10 @@ const App = () => {
                   )}
 
                   {t.status === 'REVISANDO' && (
-                    <button onClick={() => { if (confirm(`¿Confirmar pago del #${t.id}?`)) updateTicketInSupabase(t.id, { status: 'PAGADO' }); }} className="w-9 h-9 rounded-xl bg-accent-emerald/10 flex items-center justify-center border border-accent-emerald/20 transition-all active:scale-90"><span className="material-icons-round text-accent-emerald text-base">check</span></button>
+                    <button onClick={() => { showConfirm('✅ CONFIRMAR PAGO', `¿Confirmar pago del #${t.id}?`, () => updateTicketInSupabase(t.id, { status: 'PAGADO' })); }} className="w-9 h-9 rounded-xl bg-accent-emerald/10 flex items-center justify-center border border-accent-emerald/20 transition-all active:scale-90"><span className="material-icons-round text-accent-emerald text-base">check</span></button>
                   )}
 
-                  <button onClick={() => { if (confirm(`¿Cancelar reserva del #${t.id}?`)) updateTicketInSupabase(t.id, { status: 'AVAILABLE', participant: undefined, seller_id: undefined } as any); }} className="w-9 h-9 rounded-xl bg-red-500/10 flex items-center justify-center border border-red-500/20 transition-all active:scale-90"><span className="material-icons-round text-red-500/60 text-base">close</span></button>
+                  <button onClick={() => { showConfirm('❌ CANCELAR', `¿Liberar el número #${t.id}?`, () => updateTicketInSupabase(t.id, { status: 'AVAILABLE', participant: undefined, seller_id: undefined } as any)); }} className="w-9 h-9 rounded-xl bg-red-500/10 flex items-center justify-center border border-red-500/20 transition-all active:scale-90"><span className="material-icons-round text-red-500/60 text-base">close</span></button>
                 </div>
               </div>
             ))}
@@ -1324,9 +1337,7 @@ const App = () => {
                     </button>
                     <button
                       onClick={() => {
-                        if (confirm(`⚠️ ¿FORZAR el cambio? Se PERDERÁN ${warningModal.tickets.length} ventas/reservas.\n\n¡Esta acción NO se puede deshacer!`)) {
-                          applyTicketChange(warningModal.newCount);
-                        }
+                        showConfirm('⚠️ FORZAR CAMBIO', `Se perderán definitivamente ${warningModal.tickets.length} ventas y reservas. ¿Continuar?`, () => applyTicketChange(warningModal.newCount));
                       }}
                       className="flex-1 bg-red-500/20 border border-red-500/30 text-red-400 font-bold py-3.5 rounded-2xl text-sm uppercase tracking-widest active:scale-95 transition-all"
                     >
@@ -1346,6 +1357,63 @@ const App = () => {
               <input type="password" value={pin} onChange={e => setPin(e.target.value)} placeholder="• • • •" className="bg-transparent border-b-4 border-primary text-center text-5xl text-white py-6 w-56 mb-16 outline-none font-mono tracking-[0.6em] focus:border-accent-purple transition-all" />
               <button onClick={handleLogin} className="gold-gradient text-black font-bold px-20 py-5 rounded-full uppercase text-sm tracking-[0.3em] shadow-gold-glow active:scale-95 transition-all">ACCEDER</button>
               <button onClick={() => { setShowLogin(null); setPin(''); }} className="mt-12 text-zinc-600 font-bold uppercase text-[10px] tracking-widest underline">Cancelar</button>
+            </div>
+          )}
+          {/* SYSTEM MODAL (REPLACEMENT FOR ALERT/CONFIRM/PROMPT) */}
+          {modal.show && (
+            <div className="fixed inset-0 z-[10000] flex items-center justify-center p-6 glass-heavy backdrop-blur-xl animate-fade-in text-white">
+              <div className="bg-[#0c0c0c] w-full max-w-sm rounded-[40px] border border-white/10 shadow-2xl overflow-hidden animate-scale-up">
+                <div className={`p-8 text-center ${modal.type === 'ALERT' && modal.title === 'ERROR' ? 'bg-red-500/10' : 'bg-primary/10'}`}>
+                  <div className={`w-16 h-16 mx-auto rounded-2xl flex items-center justify-center mb-4 ${modal.type === 'CONFIRM' ? 'bg-orange-500/20 text-orange-400' : modal.type === 'ALERT' ? 'bg-primary/20 text-primary' : 'bg-accent-emerald/20 text-accent-emerald'}`}>
+                    <span className="material-icons-round text-3xl">
+                      {modal.type === 'CONFIRM' ? 'help_outline' : (modal.type === 'ALERT' && modal.title === 'ERROR') ? 'error_outline' : modal.type === 'ALERT' ? 'check_circle_outline' : 'person_add'}
+                    </span>
+                  </div>
+                  <h3 className="text-xl font-bold text-white tracking-widest uppercase">{modal.title}</h3>
+                </div>
+
+                <div className="p-8 space-y-6">
+                  {modal.type === 'SELLER_FORM' ? (
+                    <div className="space-y-4">
+                      <input id="modal-input-1" placeholder="NOMBRE DEL VENDEDOR" className="casino-input w-full uppercase" />
+                      <input id="modal-input-2" placeholder="PIN (4 DÍGITOS)" className="casino-input w-full" maxLength={4} />
+                    </div>
+                  ) : (
+                    <p className="text-white/60 text-center text-sm font-medium leading-relaxed">{modal.message}</p>
+                  )}
+
+                  <div className="flex gap-3">
+                    {modal.type === 'CONFIRM' || modal.type === 'SELLER_FORM' ? (
+                      <>
+                        <button
+                          onClick={() => setModal({ ...modal, show: false })}
+                          className="flex-1 py-4 rounded-2xl bg-white/5 border border-white/10 text-white/40 font-bold uppercase tracking-widest text-xs"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={() => {
+                            const v1 = (document.getElementById('modal-input-1') as HTMLInputElement)?.value;
+                            const v2 = (document.getElementById('modal-input-2') as HTMLInputElement)?.value;
+                            modal.onConfirm?.(v1, v2);
+                            setModal({ ...modal, show: false });
+                          }}
+                          className="flex-1 py-4 rounded-2xl gold-gradient text-black font-extrabold uppercase tracking-widest text-xs shadow-gold-glow"
+                        >
+                          Confirmar
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => setModal({ ...modal, show: false })}
+                        className="w-full py-4 rounded-2xl gold-gradient text-black font-extrabold uppercase tracking-widest text-xs shadow-gold-glow"
+                      >
+                        ENTENDIDO
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </>
