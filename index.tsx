@@ -703,10 +703,27 @@ const App = () => {
       </div>
 
       {/* Bottom Nav */}
-      <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto glass border-t border-primary/20 px-8 py-4 flex justify-between items-center z-30">
-        <button onClick={() => setView('HOME')} className="flex flex-col items-center gap-1"><span className="material-icons-round text-primary">style</span><span className="text-[10px] text-primary uppercase font-medium">Talonario</span></button>
-        {!isClientMode && <button onClick={() => setShowLogin('SELLER')} className="flex flex-col items-center gap-1"><span className="material-icons-round text-gray-500">groups</span><span className="text-[10px] text-gray-500 uppercase font-medium">Ventas</span></button>}
-        {!isClientMode && <button onClick={() => setShowLogin('ADMIN')} className="flex flex-col items-center gap-1"><span className="material-icons-round text-gray-500">settings</span><span className="text-[10px] text-gray-500 uppercase font-medium">Admin</span></button>}
+      <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-black/80 backdrop-blur-2xl border-t border-white/10 px-6 pt-3 pb-8 flex justify-between items-center z-30">
+        <button onClick={() => setView('HOME')} className={`flex flex-col items-center gap-1 transition-all ${view === 'HOME' ? 'text-primary' : 'text-white/40'}`}>
+          <div className={`w-12 h-12 flex items-center justify-center rounded-xl ${view === 'HOME' ? 'bg-primary/10 border border-primary/30' : 'bg-white/5'}`}>
+            <span className="material-icons-round">home</span>
+          </div>
+          <span className="text-[9px] font-bold uppercase tracking-widest">Inicio</span>
+        </button>
+
+        <button onClick={() => setView('TALONARIO')} className={`flex flex-col items-center gap-1 transition-all ${view === 'TALONARIO' ? 'text-primary' : 'text-white/40'}`}>
+          <div className={`w-14 h-14 -mt-6 flex items-center justify-center rounded-2xl shadow-gold-glow-large ${view === 'TALONARIO' ? 'gold-gradient text-black' : 'bg-[#1a1a1a] border border-white/10 text-white'}`}>
+            <span className="material-icons-round text-3xl">confirmation_number</span>
+          </div>
+          <span className="text-[9px] font-bold uppercase tracking-widest mt-1">Talonario</span>
+        </button>
+
+        <button onClick={() => setShowLogin('SELLER')} className="flex flex-col items-center gap-1 text-white/40">
+          <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 border border-white/5">
+            <span className="material-icons-round">person</span>
+          </div>
+          <span className="text-[9px] font-bold uppercase tracking-widest">Vendedor</span>
+        </button>
       </nav>
     </div>
   );
@@ -737,18 +754,16 @@ const App = () => {
       </div>
 
       <main className="flex-1 overflow-y-auto scrollbar-hide pb-44 px-4 pt-6">
-        {/* Prize Mini */}
+        {/* Prize Square */}
         <div className="relative flex flex-col items-center mb-8">
-          <div className="absolute w-48 h-48 bg-primary/20 rounded-full blur-[80px] -z-10"></div>
-          <div className="relative w-40 h-40 mb-4">
-            <div className="absolute inset-0 border-2 border-primary/40 rounded-full animate-spin" style={{ animationDuration: '8s' }}></div>
-            <div className="absolute inset-2 border border-accent-purple/30 rounded-full"></div>
-            <div className="relative w-full h-full p-4 flex items-center justify-center">
-              <img src={config.prizes?.[0]?.image || "https://images.unsplash.com/photo-1695048133142-1a20484d2569"} className="w-full h-full object-contain drop-shadow-[0_0_20px_rgba(212,175,55,0.4)] rounded-2xl" />
+          <div className="absolute w-48 h-48 bg-primary/20 blur-[100px] -z-10"></div>
+          <div className="relative w-full aspect-video mb-4 overflow-hidden rounded-3xl border-2 border-primary/30 shadow-gold-glow">
+            <img src={config.prizes?.[0]?.image || "https://images.unsplash.com/photo-1695048133142-1a20484d2569"} className="w-full h-full object-cover" />
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 p-4">
+              <span className="bg-primary text-black text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Premio Mayor</span>
+              <h2 className="font-display text-2xl text-white mt-1 uppercase italic font-black">{config.prizes?.[0]?.name || 'Gran Premio'}</h2>
             </div>
           </div>
-          <p className="text-[10px] uppercase tracking-widest text-primary font-bold">Premio Mayor</p>
-          <h2 className="font-display text-2xl text-white">{config.prizes?.[0]?.name || 'Gran Premio'}</h2>
         </div>
 
         {/* Info Bar */}
@@ -775,16 +790,16 @@ const App = () => {
                     if (!isOccupied) setSelection(p => isSelected ? p.filter(x => x !== t.id) : [...p, t.id]);
                   }
                 }}
-                className={`rounded-xl h-14 flex flex-col items-center justify-center transition-all duration-200 ${isOccupied
+                className={`rounded-lg h-14 flex flex-col items-center justify-center transition-all duration-200 ${isOccupied
                   ? (isAdmin || isSeller) ? 'bg-primary/20 border border-primary/40' : 'bg-black/40 border border-white/5 opacity-40 cursor-not-allowed'
                   : isSelected
-                    ? 'glass-dark neon-purple-glow'
-                    : 'glass-dark border border-white/5 opacity-80 hover:border-primary/40'
+                    ? 'bg-primary text-black shadow-gold-glow scale-95'
+                    : 'bg-white/5 border border-white/10 hover:border-primary/40'
                   }`}
               >
-                <span className={`text-xs font-bold ${isOccupied ? (isAdmin || isSeller) ? 'text-primary' : 'text-gray-600 line-through' : isSelected ? 'text-primary' : 'text-white'}`}>{t.id}</span>
-                <span className={`text-[8px] uppercase font-bold ${(isAdmin || isSeller) && isOccupied ? 'text-primary/60' : isOccupied ? 'text-gray-700' : isSelected ? 'text-accent-purple' : 'text-gray-500'}`}>
-                  {isOccupied ? (isAdmin || isSeller) ? 'Detalle' : 'Vendido' : isSelected ? 'Tuyo' : 'Libre'}
+                <span className={`text-sm font-black ${isSelected ? 'text-black' : isOccupied ? (isAdmin || isSeller) ? 'text-primary' : 'text-gray-700' : 'text-white'}`}>{t.id}</span>
+                <span className={`text-[7px] uppercase font-black ${isSelected ? 'text-black/60' : (isAdmin || isSeller) && isOccupied ? 'text-primary/60' : isOccupied ? 'text-gray-800' : 'text-gray-500'}`}>
+                  {isOccupied ? (isAdmin || isSeller) ? 'Ver' : 'Vendido' : isSelected ? 'Listo' : 'Libre'}
                 </span>
               </button>
             );
@@ -815,23 +830,42 @@ const App = () => {
         </div>
       </main>
 
-      {/* Bottom Reserve */}
-      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-20">
-        <div className="px-6 pb-6">
+      {/* Floating Reserve Button */}
+      {selection.length > 0 && (
+        <div className="fixed bottom-28 left-0 right-0 max-w-md mx-auto px-6 z-40 animate-bounce-subtle">
           <button
-            onClick={() => selection.length > 0 && setShowCheckout(true)}
-            disabled={selection.length === 0}
-            className="w-full gold-gradient text-black font-extrabold py-4 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.4)] flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-30"
+            onClick={() => setShowCheckout(true)}
+            className="w-full gold-gradient text-black font-black py-5 rounded-2xl shadow-gold-glow-large flex items-center justify-center gap-3 active:scale-95 transition-all uppercase tracking-widest text-sm"
           >
-            <span className="material-icons-round">local_activity</span>
-            RESERVAR NÚMEROS ({selection.length})
+            <span className="material-icons-round text-2xl">local_activity</span>
+            Completar Reserva ({selection.length})
           </button>
         </div>
-        <nav className="bg-black/90 backdrop-blur-xl border-t border-white/5 px-8 pt-3 pb-8 flex justify-between items-center">
-          <button onClick={() => setView('TALONARIO')} className="flex flex-col items-center gap-1"><span className="material-icons-round text-primary">confirmation_number</span><span className="text-[9px] uppercase tracking-tighter text-primary font-bold">Talonario</span></button>
-          <button onClick={() => setView('HOME')} className="flex flex-col items-center gap-1 opacity-50"><span className="material-icons-round text-white">home</span><span className="text-[9px] uppercase tracking-tighter text-white font-bold">Inicio</span></button>
-        </nav>
-      </div>
+      )}
+
+      {/* Uni-Bottom Nav */}
+      <nav className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-[#0a0a0b]/95 backdrop-blur-2xl border-t border-white/10 px-6 pt-3 pb-8 flex justify-between items-center z-30">
+        <button onClick={() => setView('HOME')} className={`flex flex-col items-center gap-1 transition-all ${view === 'HOME' ? 'text-primary' : 'text-white/40'}`}>
+          <div className={`w-12 h-12 flex items-center justify-center rounded-xl border transition-all ${view === 'HOME' ? 'bg-primary/10 border-primary/40' : 'bg-white/5 border-transparent'}`}>
+            <span className="material-icons-round">home</span>
+          </div>
+          <span className="text-[9px] font-black uppercase tracking-widest">Inicio</span>
+        </button>
+
+        <button onClick={() => setView('TALONARIO')} className={`flex flex-col items-center gap-1 transition-all ${view === 'TALONARIO' ? 'text-primary' : 'text-white/40'}`}>
+          <div className={`w-14 h-14 -mt-6 flex items-center justify-center rounded-2xl shadow-gold-glow-large transition-all ${view === 'TALONARIO' ? 'gold-gradient text-black scale-110' : 'bg-[#1a1a1a] border border-white/10 text-white'}`}>
+            <span className="material-icons-round text-3xl">confirmation_number</span>
+          </div>
+          <span className="text-[9px] font-black uppercase tracking-widest mt-1">Talonario</span>
+        </button>
+
+        <button onClick={() => setShowLogin('SELLER')} className="flex flex-col items-center gap-1 text-white/40">
+          <div className="w-12 h-12 flex items-center justify-center rounded-xl bg-white/5 border border-transparent">
+            <span className="material-icons-round">person</span>
+          </div>
+          <span className="text-[9px] font-black uppercase tracking-widest">Vendedor</span>
+        </button>
+      </nav>
     </div>
   );
 
