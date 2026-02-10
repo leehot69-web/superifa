@@ -1093,15 +1093,24 @@ const App = () => {
                       window.open(`https://wa.me/${config.whatsapp}?text=RESERVA: ${selection.join(', ')} de ${n}`, '_blank');
                       const rid = new URLSearchParams(window.location.search).get('ref') || '';
 
-                      // Actualizar en Supabase
+                      // 1. Actualización Optimista (Bloqueo instantáneo en UI)
+                      const participantData = { name: n, phone: p, timestamp: Date.now() };
+                      setTickets(prev => prev.map(t => selection.includes(t.id) ? { ...t, status: 'REVISANDO' as TicketStatus, participant: participantData, sellerId: rid || undefined } : t));
+
+                      // 2. Enviar a Supabase
                       const updates: any = {
-                        status: 'REVISANDO' as TicketStatus,
-                        participant: { name: n, phone: p, timestamp: Date.now() }
+                        status: 'REVISANDO',
+                        participant: participantData
                       };
                       if (rid) updates.seller_id = rid;
 
                       supabase.from('kerifa_tickets').update(updates).in('id', selection).then(({ error }) => {
-                        if (error) console.error(error);
+                        if (error) {
+                          console.error("Error al reservar:", error);
+                          alert("Hubo un error al guardar tu reserva. Por favor intenta de nuevo.");
+                          // Revertir si falla
+                          setTickets(prev => prev.map(t => selection.includes(t.id) ? { ...t, status: 'AVAILABLE' as TicketStatus, participant: undefined } : t));
+                        }
                       });
 
                       setSelection([]); setShowCheckout(false); setView('HOME');
