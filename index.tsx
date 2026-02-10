@@ -53,6 +53,18 @@ const SPLASH_VIDEO = "/introsuperrifa.mp4";
 const ENTRY_VIDEO = "/videosuperrifa.mp4";
 const LOGO = "/descarga-removebg-preview.png";
 
+// --- Utilidades ---
+const slugify = (str: string) => {
+  if (!str) return '';
+  return str.toString().toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w\s-]/g, '')
+    .trim()
+    .replace(/[-\s]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+};
+
 // ============================================================
 // APP
 // ============================================================
@@ -124,11 +136,25 @@ const App = () => {
     const ref = params.get('ref');
     if (ref) {
       localStorage.setItem('kerifa_ref', ref);
-      setReferralId(ref);
-    } else {
-      setReferralId(localStorage.getItem('kerifa_ref'));
     }
-  }, []);
+
+    const storedRef = localStorage.getItem('kerifa_ref');
+    if (storedRef && sellers.length > 0) {
+      // Intentar encontrar por ID primero
+      const byId = sellers.find(s => s.id === storedRef);
+      if (byId) {
+        setReferralId(storedRef);
+      } else {
+        // Si no es ID, buscar por nombre slugificado
+        const bySlug = sellers.find(s => slugify(s.name) === slugify(storedRef));
+        if (bySlug) {
+          setReferralId(bySlug.id);
+        } else {
+          setReferralId(storedRef); // Fallback original
+        }
+      }
+    }
+  }, [sellers]);
 
 
   // --- Countdown ---
@@ -1411,9 +1437,13 @@ const App = () => {
           <div className="glass p-5 rounded-2xl flex items-center justify-between border-white/5 neon-gold-glow">
             <div className="overflow-hidden flex-1 mr-4">
               <p className="text-white/50 text-xs mb-1">Link Único</p>
-              <p className="text-white font-medium truncate text-sm">{window.location.origin}?ref={currentSeller?.id}</p>
+              <p className="text-white font-medium truncate text-sm">{window.location.origin}?ref={slugify(currentSeller?.name)}</p>
             </div>
-            <button onClick={() => { navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}?ref=${currentSeller?.id}`); showAlert("COPIADO", "¡Link de referido copiado!"); }} className="bg-primary hover:bg-yellow-500 transition-colors text-black px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shrink-0">
+            <button onClick={() => {
+              const link = `${window.location.origin}${window.location.pathname}?ref=${slugify(currentSeller?.name)}`;
+              navigator.clipboard.writeText(link);
+              showAlert("COPIADO", "¡Link personalizado copiado!");
+            }} className="bg-primary hover:bg-yellow-500 transition-colors text-black px-6 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 shrink-0">
               <span className="material-icons-round text-lg">content_copy</span> Copiar
             </button>
           </div>
