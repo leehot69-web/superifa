@@ -82,6 +82,7 @@ const App = () => {
   const [referralId, setReferralId] = useState<string | null>(null);
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
   const [showGoldenTicket, setShowGoldenTicket] = useState<{ show: boolean; numbers: string[] }>({ show: false, numbers: [] });
+  const [showAffiliateModal, setShowAffiliateModal] = useState(false);
   const [modal, setModal] = useState<{
     show: boolean;
     type: 'ALERT' | 'CONFIRM' | 'SELLER_FORM';
@@ -297,6 +298,18 @@ const App = () => {
     const { data, error } = await supabase.from('sellers').insert([{ name, pin, active: true }]).select();
     if (error) { showAlert('ERROR', "No se pudo crear el vendedor: " + error.message); return null; }
     return data[0];
+  };
+
+  const createApplicationInSupabase = async (formData: any) => {
+    setIsLoading(true);
+    const { error } = await supabase.from('kerifa_applications').insert([formData]);
+    setIsLoading(false);
+    if (error) {
+      showAlert('ERROR', 'No se pudo enviar la solicitud: ' + error.message);
+    } else {
+      showAlert('ÉXITO', 'Solicitud enviada correctamente. Nos comunicaremos contigo pronto.');
+      setShowAffiliateModal(false);
+    }
   };
 
   const deleteSellerInSupabase = async (id: string) => {
@@ -545,6 +558,16 @@ const App = () => {
         <button onClick={() => setView('TALONARIO')} className="w-full mt-6 py-4 rounded-2xl glass border-primary/40 text-primary font-bold tracking-widest uppercase text-xs flex items-center justify-center gap-2 shadow-lg">
           <span className="material-icons-round text-sm">confirmation_number</span> Reservar Números
         </button>
+
+        {/* Affiliate CTA Home */}
+        <section className="mt-12 mb-20">
+          <div className="glass p-8 rounded-[40px] border border-white/5 text-center relative overflow-hidden group active:scale-95 transition-all cursor-pointer" onClick={() => setShowAffiliateModal(true)}>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-accent-purple/10 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-accent-purple/20 transition-colors"></div>
+            <span className="material-icons-round text-primary text-4xl mb-4">rocket_launch</span>
+            <h3 className="text-xl font-bold text-white mb-2 italic uppercase">Genera Comisiones</h3>
+            <p className="text-white/40 text-[10px] uppercase font-bold tracking-[0.2em] leading-relaxed">Conviértete en afiliador hoy mismo<br />y vende desde tu celular</p>
+          </div>
+        </section>
       </main>
 
       {/* WhatsApp FAB */}
@@ -652,6 +675,19 @@ const App = () => {
             </div>
           </div>
         )}
+
+        {/* Affiliate CTA */}
+        <div className="mt-12 px-2 pb-10">
+          <div className="glass p-8 rounded-[40px] border border-primary/20 text-center relative overflow-hidden group active:scale-95 transition-all cursor-pointer" onClick={() => setShowAffiliateModal(true)}>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-primary/20 transition-colors"></div>
+            <span className="material-icons-round text-primary text-4xl mb-4">monetization_on</span>
+            <h3 className="text-xl font-bold text-white mb-2 italic">¿QUIERES GANAR VENDIENDO?</h3>
+            <p className="text-white/40 text-[10px] uppercase font-bold tracking-[0.2em] leading-relaxed">Únete a nuestro equipo de distribuidores<br />y genera comisiones por cada ticket</p>
+            <div className="mt-6 inline-flex items-center gap-2 text-primary font-bold text-[10px] uppercase tracking-widest border-b border-primary/30 pb-1">
+              Saber más <span className="material-icons-round text-xs">arrow_forward</span>
+            </div>
+          </div>
+        </div>
       </main>
 
       {/* Bottom Reserve */}
@@ -1106,7 +1142,60 @@ const App = () => {
             {sellerStats.count === 0 && <div className="text-center py-16 text-white/10 font-bold uppercase text-sm tracking-widest">Sin ventas aún</div>}
           </div>
         </section>
+
+        {/* Affiliate CTA Seller (Encouragement) */}
+        <section className="mt-12 pb-32">
+          <div className="glass p-8 rounded-[40px] border border-accent-emerald/10 text-center relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-32 h-32 bg-accent-emerald/5 rounded-full blur-3xl -ml-16 -mt-16"></div>
+            <span className="material-icons-round text-accent-emerald text-4xl mb-4">stars</span>
+            <h3 className="text-xl font-bold text-white mb-2 italic uppercase tracking-tighter">¡Sigue Ganando!</h3>
+            <p className="text-white/40 text-[10px] uppercase font-bold tracking-[0.2em] leading-relaxed">Cada venta te acerca a tus metas.<br />Tu comisión actual es del {sellerStats.ratePct}%</p>
+          </div>
+        </section>
       </main>
+    </div>
+  );
+
+  const renderAffiliateModal = () => (
+    <div className="fixed inset-0 z-[10005] flex items-center justify-center p-6 glass-heavy backdrop-blur-3xl animate-fade-in text-white overflow-y-auto">
+      <div className="bg-[#0c0c0c] w-full max-w-sm rounded-[40px] border border-white/10 shadow-2xl overflow-hidden animate-scale-up my-auto">
+        <div className="p-8 text-center bg-primary/10 relative border-b border-white/5">
+          <button onClick={() => setShowAffiliateModal(false)} className="absolute top-6 right-6 text-white/30 hover:text-white transition-colors"><span className="material-icons-round">close</span></button>
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-primary/20 text-primary flex items-center justify-center mb-4 border border-primary/30">
+            <span className="material-icons-round text-3xl">rocket_launch</span>
+          </div>
+          <h3 className="text-xl font-bold tracking-widest uppercase italic">Únete al Equipo</h3>
+          <p className="text-[10px] text-white/40 uppercase font-bold mt-2 tracking-[0.2em]">Gana comisiones desde tu celular</p>
+        </div>
+
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          const fd = new FormData(e.currentTarget);
+          createApplicationInSupabase({
+            full_name: fd.get('name') as string,
+            id_number: fd.get('cedula') as string,
+            phone: fd.get('phone') as string,
+            family_phone: fd.get('fphone') as string,
+            address: fd.get('address') as string,
+          });
+        }} className="p-8 space-y-4">
+          <div className="space-y-4">
+            <input name="name" required placeholder="NOMBRE COMPLETO" className="casino-input w-full uppercase text-xs" />
+            <input name="cedula" required placeholder="CÉDULA / ID" className="casino-input w-full uppercase text-xs" />
+            <input name="address" required placeholder="DIRECCIÓN EXACTA" className="casino-input w-full uppercase text-xs" />
+            <input name="phone" required placeholder="TU WHATSAPP" className="casino-input w-full text-xs" />
+            <input name="fphone" required placeholder="TELÉFONO DE FAMILIAR" className="casino-input w-full text-xs" />
+          </div>
+
+          <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10">
+            <p className="text-[9px] text-primary/60 leading-relaxed text-center font-bold uppercase tracking-wider">⚠️ Ten a la mano foto de tu cédula y un recibo para la validación final vía WhatsApp.</p>
+          </div>
+
+          <button type="submit" className="w-full py-5 rounded-2xl gold-gradient text-black font-extrabold uppercase tracking-widest text-xs shadow-gold-glow mt-2 active:scale-95 transition-all">
+            ENVIAR SOLICITUD
+          </button>
+        </form>
+      </div>
     </div>
   );
 
@@ -1138,6 +1227,8 @@ const App = () => {
           {view === 'TALONARIO' && renderTalonario()}
           {view === 'ADMIN' && renderAdmin()}
           {view === 'SELLER_HUB' && renderSellerHub()}
+
+          {showAffiliateModal && renderAffiliateModal()}
 
           {/* CHECKOUT MODAL */}
           {showCheckout && (
