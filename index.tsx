@@ -1158,10 +1158,44 @@ const App = () => {
 
                     <button
                       onClick={() => setShowPaymentForm({ show: true, sellerId: s.id })}
-                      className="w-full py-4 bg-primary text-black font-black text-[10px] uppercase tracking-widest rounded-2xl active:scale-95 transition-all"
+                      className="w-full py-4 bg-primary text-black font-black text-[10px] uppercase tracking-widest rounded-2xl active:scale-95 transition-all mb-6"
                     >
                       REGISTRAR PAGO (ABONO)
                     </button>
+
+                    {/* Historial Detallado - Libro de Administración / Nómina */}
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-white/40 mb-1">
+                        <span className="material-icons-round text-sm">history_edu</span>
+                        <p className="text-[9px] font-bold uppercase tracking-widest">Libro de Administración / Nómina</p>
+                      </div>
+                      <div className="bg-black/30 rounded-2xl border border-white/5 overflow-hidden">
+                        {payments.filter(p => p.seller_id === s.id).length === 0 ? (
+                          <p className="text-[10px] text-white/10 italic text-center py-6">Sin movimientos registrados</p>
+                        ) : (
+                          <div className="max-h-60 overflow-y-auto">
+                            <table className="w-full text-left border-collapse">
+                              <thead className="bg-white/5 text-[8px] text-white/30 uppercase font-black tracking-widest sticky top-0 backdrop-blur-md">
+                                <tr>
+                                  <th className="px-4 py-3">Fecha</th>
+                                  <th className="px-4 py-3">Concepto / Nota</th>
+                                  <th className="px-4 py-3 text-right">Monto</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-white/5">
+                                {payments.filter(p => p.seller_id === s.id).map(p => (
+                                  <tr key={p.id} className="text-[10px] text-white/70">
+                                    <td className="px-4 py-3 whitespace-nowrap">{new Date(p.date).toLocaleDateString()}</td>
+                                    <td className="px-4 py-3 italic truncate max-w-[120px]">{p.notes || 'Abono'}</td>
+                                    <td className="px-4 py-3 text-right font-bold text-primary">${p.amount.toFixed(2)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 );
               })}
@@ -1380,9 +1414,43 @@ const App = () => {
             </div>
           </div>
 
-          <div className="bg-primary/5 p-6 rounded-[32px] border border-primary/10 flex justify-between items-center">
+          <div className="bg-primary/5 p-6 rounded-[32px] border border-primary/10 flex justify-between items-center mb-10">
             <p className="text-[10px] text-primary/80 font-bold uppercase tracking-[0.2em]">Balance Pendiente:</p>
             <p className="text-2xl font-black text-primary">${(sellerStats.commission - payments.filter(p => p.seller_id === currentSeller?.id).reduce((sum, p) => sum + p.amount, 0)).toFixed(2)}</p>
+          </div>
+
+          {/* Ledger para el vendedor */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <span className="material-icons-round text-primary/70">history_edu</span>
+              <h2 className="text-lg font-bold text-white uppercase italic tracking-tighter">Mi Libreta de Pagos</h2>
+            </div>
+            <div className="glass rounded-[32px] border-white/5 overflow-hidden">
+              <div className="max-h-80 overflow-y-auto">
+                <table className="w-full text-[10px]">
+                  <thead className="bg-white/5 text-white/40 uppercase font-bold sticky top-0 backdrop-blur-md">
+                    <tr>
+                      <th className="px-4 py-4 text-left">Fecha</th>
+                      <th className="px-4 py-4 text-left">Concepto</th>
+                      <th className="px-4 py-4 text-right">Monto</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {payments.filter(p => p.seller_id === currentSeller?.id).length === 0 ? (
+                      <tr><td colSpan={3} className="px-4 py-10 text-center text-white/10 uppercase tracking-widest font-bold">No se han registrado abonos</td></tr>
+                    ) : (
+                      payments.filter(p => p.seller_id === currentSeller?.id).map(p => (
+                        <tr key={p.id} className="text-white/60">
+                          <td className="px-4 py-4 whitespace-nowrap">{new Date(p.date).toLocaleDateString()}</td>
+                          <td className="px-4 py-4 font-medium text-white/80">{p.notes || 'Abono recibido'}</td>
+                          <td className="px-4 py-4 text-right font-bold text-primary">${p.amount.toFixed(2)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </section>
       </main>
