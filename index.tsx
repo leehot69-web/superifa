@@ -173,7 +173,9 @@ const App = () => {
 
     fetchInitialData();
 
-    // 4. Realtime: Tickets
+    // 4. Realtime: Canales (Solo si supabase existe)
+    if (!supabase) return;
+
     const ticketsChannel = supabase
       .channel('kerifa_tickets_channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'kerifa_tickets' }, (payload) => {
@@ -198,7 +200,6 @@ const App = () => {
       })
       .subscribe();
 
-    // 5. Realtime: Config
     const configChannel = supabase
       .channel('kerifa_config_channel')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'kerifa_config' }, (payload) => {
@@ -207,7 +208,6 @@ const App = () => {
       })
       .subscribe();
 
-    // 6. Realtime: Sellers
     const sellersChannel = supabase
       .channel('sellers_channel')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sellers' }, (payload) => {
@@ -224,9 +224,9 @@ const App = () => {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(ticketsChannel);
-      supabase.removeChannel(configChannel);
-      supabase.removeChannel(sellersChannel);
+      if (ticketsChannel) supabase.removeChannel(ticketsChannel);
+      if (configChannel) supabase.removeChannel(configChannel);
+      if (sellersChannel) supabase.removeChannel(sellersChannel);
     };
   }, []);
 
